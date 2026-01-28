@@ -58,10 +58,20 @@ const FIELD_LABELS: Record<FieldKey, string> = {
 };
 
 // Fields that map directly to job columns
-const DIRECT_FIELDS: FieldKey[] = ["title", "companyName", "reqId", "jobPostUrl", "applyUrl", "recruiterEmails"];
+const DIRECT_FIELDS: FieldKey[] = [
+    "title",
+    "companyName",
+    "reqId",
+    "jobPostUrl",
+    "applyUrl",
+    "recruiterEmails",
+    "location",
+    "workMode",
+    "skills",
+];
 
 // Fields that go to notes
-const NOTES_FIELDS: FieldKey[] = ["location", "workMode", "skills", "summary"];
+const NOTES_FIELDS: FieldKey[] = ["summary"];
 
 export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAssistModalProps) {
     // Input form state
@@ -273,6 +283,11 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
                 return job.recruiter_emails && job.recruiter_emails.length > 0
                     ? job.recruiter_emails.join(", ")
                     : "";
+            case "location": return job.location || "";
+            case "workMode": return job.work_mode || "";
+            case "skills":
+                const allSkills = [...(job.primary_skills || []), ...(job.secondary_skills || [])];
+                return allSkills.length > 0 ? allSkills.join(", ") : "";
             default: return ""; // Notes fields don't overwrite
         }
     };
