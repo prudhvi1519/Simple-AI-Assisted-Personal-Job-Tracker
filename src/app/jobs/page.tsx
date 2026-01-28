@@ -94,6 +94,8 @@ export default function JobsPage() {
     const [resumeFile, setResumeFile] = useState<File | null>(null);
     const [uploadingResume, setUploadingResume] = useState(false);
     const [resumeUploadError, setResumeUploadError] = useState<string | null>(null);
+    const [resumeUploadSuccess, setResumeUploadSuccess] = useState(false);
+    const [createdJobId, setCreatedJobId] = useState<string | null>(null);
     const resumeInputRef = useRef<HTMLInputElement>(null);
 
     // Delete confirmation
@@ -148,6 +150,7 @@ export default function JobsPage() {
         setFormLoading(true);
         setFormError(null);
         setResumeUploadError(null);
+        setResumeUploadSuccess(false);
 
         try {
             const body = {
@@ -193,9 +196,19 @@ export default function JobsPage() {
                     if (!uploadRes.ok) {
                         const uploadErr = await uploadRes.json();
                         setResumeUploadError(uploadErr.error || "Resume upload failed");
+                        setCreatedJobId(newJob.id); // Save for retry
+                        setFormLoading(false);
+                        setUploadingResume(false);
+                        return; // Keep modal open for retry
+                    } else {
+                        setResumeUploadSuccess(true);
                     }
                 } catch {
                     setResumeUploadError("Resume upload failed");
+                    setCreatedJobId(newJob.id); // Save for retry
+                    setFormLoading(false);
+                    setUploadingResume(false);
+                    return; // Keep modal open for retry
                 } finally {
                     setUploadingResume(false);
                 }
@@ -213,6 +226,7 @@ export default function JobsPage() {
                 status: "Saved",
             });
             setResumeFile(null);
+            setCreatedJobId(null);
             if (resumeInputRef.current) {
                 resumeInputRef.current.value = "";
             }
@@ -222,6 +236,59 @@ export default function JobsPage() {
             setFormError(err instanceof Error ? err.message : "An error occurred");
         } finally {
             setFormLoading(false);
+        }
+    };
+
+    // Handle retry resume upload (only re-upload, don't recreate job)
+    const handleRetryResumeUpload = async () => {
+        if (!createdJobId || !resumeFile) return;
+
+        setUploadingResume(true);
+        setResumeUploadError(null);
+
+        try {
+            const uploadData = new FormData();
+            uploadData.append("file", resumeFile);
+            uploadData.append("fileType", "resume");
+
+            const uploadRes = await fetch(`/api/jobs/${createdJobId}/files`, {
+                method: "POST",
+                body: uploadData,
+            });
+
+            if (!uploadRes.ok) {
+                const uploadErr = await uploadRes.json();
+                setResumeUploadError(uploadErr.error || "Resume upload failed");
+                return;
+            }
+
+            setResumeUploadSuccess(true);
+
+            // Success - close modal and refresh
+            setTimeout(() => {
+                setFormData({
+                    title: "",
+                    company_name: "",
+                    req_id: "",
+                    job_post_url: "",
+                    apply_url: "",
+                    recruiter_email: "",
+                    notes: "",
+                    status: "Saved",
+                });
+                setResumeFile(null);
+                setCreatedJobId(null);
+                setResumeUploadSuccess(false);
+                if (resumeInputRef.current) {
+                    resumeInputRef.current.value = "";
+                }
+                setShowAddModal(false);
+                fetchJobs();
+            }, 1000); // Brief delay to show success message
+        } catch {
+            setResumeUploadError("Resume upload failed");
+        } finally {
+            setUploadingResume(false);
         }
     };
 
@@ -740,10 +807,43 @@ export default function JobsPage() {
                         <p className="text-xs text-[var(--muted)] mt-1">
                             If uploaded with status &quot;Saved&quot;, status will change to &quot;Applied&quot;.
                         </p>
-                        {resumeUploadError && (
-                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
-                                Job created, but: {resumeUploadError}
+                        {resumeUploadSuccess && (
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                                Resume uploaded successfully!
                             </p>
+                        )}
+                        {resumeUploadError && (
+                            <div className="mt-2 p-2 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
+                                <p className="text-xs text-red-600 dark:text-red-400">
+                                    Job created, but resume upload failed: {resumeUploadError}
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={handleRetryResumeUpload}
+                                    disabled={uploadingResume}
+                                    className="mt-2 text-xs font-medium text-red-700 dark:text-red-300 hover:underline disabled:opacity-50 flex items-center gap-1"
+                                >
+                                    {uploadingResume ? (
+                                        <>
+                                            <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                            </svg>
+                                            Retrying...
+                                        </>
+                                    ) : (
+                                        <>
+                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                            </svg>
+                                            Retry Upload
+                                        </>
+                                    )}
+                                </button>
+                            </div>
                         )}
                     </div>
 
