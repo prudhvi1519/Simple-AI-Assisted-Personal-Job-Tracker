@@ -16,11 +16,12 @@ import {
 export const dynamic = "force-dynamic";
 
 // Validate env at module load
-try {
-    requireServerEnv(ENV_KEYS.SUPABASE);
-} catch {
-    // Will be caught per-request
-}
+// validate env at module load - REMOVED due to timing issues
+// try {
+//     requireServerEnv(ENV_KEYS.SUPABASE);
+// } catch {
+//     // Will be caught per-request
+// }
 
 interface RouteParams {
     params: Promise<{ id: string }>;
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PUT /api/jobs/[id] - Update job (partial update allowed)
 export async function PUT(request: NextRequest, { params }: RouteParams) {
     try {
+        requireServerEnv(ENV_KEYS.SUPABASE);
         const { id } = await params;
         const supabase = getServerSupabase();
 
@@ -189,6 +191,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/jobs/[id] - Delete job (hard delete)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
     try {
+        requireServerEnv(ENV_KEYS.SUPABASE);
         const { id } = await params;
         const supabase = getServerSupabase();
 

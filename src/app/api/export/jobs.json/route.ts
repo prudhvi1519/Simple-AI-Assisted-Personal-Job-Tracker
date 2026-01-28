@@ -5,15 +5,16 @@ import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
 // Force dynamic - needs env vars at runtime
 export const dynamic = "force-dynamic";
 
-// Validate env at module load
-try {
-    requireServerEnv(ENV_KEYS.SUPABASE);
-} catch {
-    // Will be caught per-request
-}
+// Validate env at module load - REMOVED
+// try {
+//     requireServerEnv(ENV_KEYS.SUPABASE);
+// } catch {
+//     // Will be caught per-request
+// }
 
 export async function GET() {
     try {
+        requireServerEnv(ENV_KEYS.SUPABASE);
         const supabase = getServerSupabase();
 
         const { data: jobs, error } = await supabase

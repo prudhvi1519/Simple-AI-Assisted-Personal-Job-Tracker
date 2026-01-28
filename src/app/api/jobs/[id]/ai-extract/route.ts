@@ -10,11 +10,11 @@ import { ExtractionHints, TextSource, getEmptyResult } from "@/lib/ai/prompts";
 export const dynamic = "force-dynamic";
 
 // Validate env at module load (needs Supabase + Gemini)
-try {
-    requireServerEnv(ENV_KEYS.ALL);
-} catch {
-    // Will be caught per-request
-}
+// try {
+//     requireServerEnv(ENV_KEYS.ALL);
+// } catch {
+//     // Will be caught per-request
+// }
 
 interface RouteParams {
     params: Promise<{ id: string }>;
@@ -33,6 +33,17 @@ interface ExtractRequestBody {
 // POST /api/jobs/[id]/ai-extract - Extract job info using AI
 export async function POST(request: NextRequest, { params }: RouteParams) {
     const { id: jobId } = await params;
+
+    // Check env vars first
+    try {
+        requireServerEnv(ENV_KEYS.ALL);
+    } catch (err) {
+        return NextResponse.json(
+            { error: err instanceof Error ? err.message : "Missing env vars" },
+            { status: 500 }
+        );
+    }
+
     const supabase = getServerSupabase();
 
     try {

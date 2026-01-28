@@ -13,16 +13,17 @@ import {
 // Force dynamic - needs env vars at runtime
 export const dynamic = "force-dynamic";
 
-// Validate env at module load (fail fast)
-try {
-    requireServerEnv(ENV_KEYS.SUPABASE);
-} catch {
-    // Will be caught per-request if called
-}
+// validate env at module load (fail fast) - REMOVED due to load timing
+// try {
+//     requireServerEnv(ENV_KEYS.SUPABASE);
+// } catch {
+//     // Will be caught per-request if called
+// }
 
 // GET /api/jobs - List jobs with optional filters
 export async function GET(request: NextRequest) {
     try {
+        requireServerEnv(ENV_KEYS.SUPABASE);
         const supabase = getServerSupabase();
         const { searchParams } = new URL(request.url);
 
@@ -76,6 +77,7 @@ export async function GET(request: NextRequest) {
 // POST /api/jobs - Create a new job
 export async function POST(request: NextRequest) {
     try {
+        requireServerEnv(ENV_KEYS.SUPABASE);
         const supabase = getServerSupabase();
 
         // Parse request body
