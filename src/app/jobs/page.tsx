@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -90,6 +90,12 @@ export default function JobsPage() {
         status: "Saved" as JobStatus,
     });
 
+    // Resume upload state (optional)
+    const [resumeFile, setResumeFile] = useState<File | null>(null);
+    const [uploadingResume, setUploadingResume] = useState(false);
+    const [resumeUploadError, setResumeUploadError] = useState<string | null>(null);
+    const resumeInputRef = useRef<HTMLInputElement>(null);
+
     // Delete confirmation
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
@@ -136,11 +142,12 @@ export default function JobsPage() {
         return () => clearTimeout(timer);
     }, [query, fetchJobs]);
 
-    // Handle add job
+    // Handle add job (two-step: create job, then upload resume if selected)
     const handleAddJob = async (e: React.FormEvent) => {
         e.preventDefault();
         setFormLoading(true);
         setFormError(null);
+        setResumeUploadError(null);
 
         try {
             const body = {
@@ -156,6 +163,7 @@ export default function JobsPage() {
                 status: formData.status,
             };
 
+            // Step 1: Create job
             const res = await fetch("/api/jobs", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -165,6 +173,32 @@ export default function JobsPage() {
             if (!res.ok) {
                 const err = await res.json();
                 throw new Error(err.error || "Failed to create job");
+            }
+
+            const newJob = await res.json();
+
+            // Step 2: Upload resume if selected (non-blocking on failure)
+            if (resumeFile) {
+                setUploadingResume(true);
+                try {
+                    const uploadData = new FormData();
+                    uploadData.append("file", resumeFile);
+                    uploadData.append("fileType", "resume");
+
+                    const uploadRes = await fetch(`/api/jobs/${newJob.id}/files`, {
+                        method: "POST",
+                        body: uploadData,
+                    });
+
+                    if (!uploadRes.ok) {
+                        const uploadErr = await uploadRes.json();
+                        setResumeUploadError(uploadErr.error || "Resume upload failed");
+                    }
+                } catch {
+                    setResumeUploadError("Resume upload failed");
+                } finally {
+                    setUploadingResume(false);
+                }
             }
 
             // Reset form and close modal
@@ -178,6 +212,10 @@ export default function JobsPage() {
                 notes: "",
                 status: "Saved",
             });
+            setResumeFile(null);
+            if (resumeInputRef.current) {
+                resumeInputRef.current.value = "";
+            }
             setShowAddModal(false);
             fetchJobs();
         } catch (err) {
@@ -684,6 +722,31 @@ export default function JobsPage() {
                         />
                     </div>
 
+                    {/* Resume (optional) */}
+                    <div className="pt-2 border-t border-[var(--border)]">
+                        <label className="block text-sm font-medium mb-1">
+                            Resume{" "}
+                            <span className="font-normal text-[var(--muted)]">
+                                (optional)
+                            </span>
+                        </label>
+                        <input
+                            ref={resumeInputRef}
+                            type="file"
+                            accept=".pdf,.doc,.docx"
+                            className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[var(--primary)] file:text-white hover:file:opacity-90 cursor-pointer"
+                            onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                        />
+                        <p className="text-xs text-[var(--muted)] mt-1">
+                            If uploaded with status &quot;Saved&quot;, status will change to &quot;Applied&quot;.
+                        </p>
+                        {resumeUploadError && (
+                            <p className="text-xs text-red-600 dark:text-red-400 mt-1">
+                                Job created, but: {resumeUploadError}
+                            </p>
+                        )}
+                    </div>
+
                     <div className="flex justify-end gap-3 pt-4">
                         <Button
                             type="button"
@@ -692,8 +755,8 @@ export default function JobsPage() {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" isLoading={formLoading}>
-                            Add Job
+                        <Button type="submit" isLoading={formLoading || uploadingResume}>
+                            {uploadingResume ? "Uploading resume..." : formLoading ? "Saving..." : "Add Job"}
                         </Button>
                     </div>
                 </form>
