@@ -7,11 +7,11 @@ import { Job, JobFile, FILE_TYPES } from "@/lib/supabase/client";
 export const dynamic = "force-dynamic";
 
 // Validate env at module load
-try {
-    requireServerEnv(ENV_KEYS.SUPABASE);
-} catch {
-    // Will be caught per-request
-}
+// try {
+//     requireServerEnv(ENV_KEYS.SUPABASE);
+// } catch {
+//     // Will be caught per-request
+// }
 
 interface RouteParams {
     params: Promise<{ id: string }>;
@@ -20,6 +20,17 @@ interface RouteParams {
 // POST /api/jobs/[id]/files - Upload a file (resume or document)
 export async function POST(request: NextRequest, { params }: RouteParams) {
     const { id: jobId } = await params;
+
+    // Check env vars first (fail fast)
+    try {
+        requireServerEnv(ENV_KEYS.SUPABASE);
+    } catch (err) {
+        return NextResponse.json(
+            { error: err instanceof Error ? err.message : "Missing env vars" },
+            { status: 500 }
+        );
+    }
+
     const supabase = getServerSupabase();
 
     // Variables for cleanup on error

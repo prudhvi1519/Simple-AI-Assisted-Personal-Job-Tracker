@@ -6,12 +6,12 @@ import { JobFile } from "@/lib/supabase/client";
 // Force dynamic - needs env vars at runtime
 export const dynamic = "force-dynamic";
 
-// Validate env at module load
-try {
-    requireServerEnv(ENV_KEYS.SUPABASE);
-} catch {
-    // Will be caught per-request
-}
+// Validate env at module load - REMOVED
+// try {
+//     requireServerEnv(ENV_KEYS.SUPABASE);
+// } catch {
+//     // Will be caught per-request
+// }
 
 interface RouteParams {
     params: Promise<{ fileId: string }>;
@@ -20,6 +20,7 @@ interface RouteParams {
 // GET /api/files/[fileId] - Download a file
 export async function GET(request: NextRequest, { params }: RouteParams) {
     try {
+        requireServerEnv(ENV_KEYS.SUPABASE);
         const { fileId } = await params;
         const supabase = getServerSupabase();
 
@@ -72,6 +73,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // DELETE /api/files/[fileId] - Delete a file
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
     try {
+        requireServerEnv(ENV_KEYS.SUPABASE);
         const { fileId } = await params;
         const supabase = getServerSupabase();
 
