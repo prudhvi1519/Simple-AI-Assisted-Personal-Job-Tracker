@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
-import { Job } from "@/lib/supabase/client";
+import { Job, WorkMode, WORK_MODES } from "@/lib/supabase/client";
 
 // Force dynamic - needs env vars at runtime
 export const dynamic = "force-dynamic";
@@ -17,6 +17,9 @@ interface ApplyRequestBody {
         job_post_url?: string | null;
         apply_url?: string | null;
         recruiter_emails?: string[] | null;
+        location?: string | null;
+        work_mode?: string | null;
+        skills?: string[] | null;
     };
     notesAppend?: string | null;
 }
@@ -79,6 +82,36 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
                 const newEmails = fields.recruiter_emails || [];
                 const mergedEmails = [...new Set([...existingEmails, ...newEmails])];
                 updateData.recruiter_emails = mergedEmails;
+            }
+
+            // Location
+            if (fields.location !== null && fields.location !== undefined) {
+                updateData.location = fields.location;
+            }
+
+            // Work Mode (Validate against enum)
+            if (fields.work_mode !== null && fields.work_mode !== undefined) {
+                const modeStr = fields.work_mode.trim();
+                const matchedMode = WORK_MODES.find(
+                    (m) => m.toLowerCase() === modeStr.toLowerCase()
+                );
+                if (matchedMode) {
+                    updateData.work_mode = matchedMode;
+                }
+            }
+
+            // Skills (Split into primary/secondary)
+            if (fields.skills !== null && fields.skills !== undefined && Array.isArray(fields.skills)) {
+                // Dedup and normalize
+                const uniqueSkills = [...new Set(fields.skills.map((s) => s.trim()).filter(Boolean))];
+
+                // Split logic: First 6 -> primary, Rest -> secondary
+                const MAX_PRIMARY = 6;
+                const primary = uniqueSkills.slice(0, MAX_PRIMARY);
+                const secondary = uniqueSkills.slice(MAX_PRIMARY);
+
+                updateData.primary_skills = primary;
+                updateData.secondary_skills = secondary;
             }
         }
 
