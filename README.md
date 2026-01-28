@@ -83,6 +83,26 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000)
 
+### Environment Health Check
+
+Verify your env vars are correctly set:
+
+```bash
+curl http://localhost:3000/api/health/env
+```
+
+Expected response:
+```json
+{"ok": true, "missing": [], "present": ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "GEMINI_API_KEY"]}
+```
+
+### Security Notes
+
+- **Never commit `.env.local`** - it's gitignored by default
+- **GEMINI_API_KEY is server-side only** - never exposed to client
+- For production (Netlify), set env vars in dashboard or via CLI
+- API routes fail fast with clear errors if env vars are missing
+
 ## Database Schema
 
 ### jobs

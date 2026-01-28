@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
 import { Job } from "@/lib/supabase/client";
 import { fetchUrlAsText } from "@/lib/ai/htmlToText";
 import { extractWithGemini } from "@/lib/ai/gemini";
@@ -7,6 +8,13 @@ import { ExtractionHints, TextSource, getEmptyResult } from "@/lib/ai/prompts";
 
 // Force dynamic - needs env vars at runtime
 export const dynamic = "force-dynamic";
+
+// Validate env at module load (needs Supabase + Gemini)
+try {
+    requireServerEnv(ENV_KEYS.ALL);
+} catch {
+    // Will be caught per-request
+}
 
 interface RouteParams {
     params: Promise<{ id: string }>;
