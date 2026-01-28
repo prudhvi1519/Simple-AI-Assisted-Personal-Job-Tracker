@@ -8,7 +8,11 @@ import {
     UpdateJobRequest,
     AiRun,
     JOB_STATUSES,
+    WORK_MODES,
+    PRIORITIES,
     isValidJobStatus,
+    isValidWorkMode,
+    isValidPriority,
     isValidUrl,
 } from "@/lib/supabase/client";
 
@@ -151,6 +155,28 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
             );
         }
 
+        // Validate work_mode if provided
+        if (body.work_mode !== undefined && body.work_mode !== null && !isValidWorkMode(body.work_mode)) {
+            return NextResponse.json(
+                {
+                    error: "Invalid work_mode",
+                    details: `Work mode must be one of: ${WORK_MODES.join(", ")}`,
+                },
+                { status: 400 }
+            );
+        }
+
+        // Validate priority if provided
+        if (body.priority !== undefined && body.priority !== null && !isValidPriority(body.priority)) {
+            return NextResponse.json(
+                {
+                    error: "Invalid priority",
+                    details: `Priority must be one of: ${PRIORITIES.join(", ")}`,
+                },
+                { status: 400 }
+            );
+        }
+
         // Build update data (only include fields that were provided)
         const updateData: Record<string, unknown> = {};
         if (body.title !== undefined) updateData.title = body.title || null;
@@ -159,7 +185,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         if (body.job_post_url !== undefined) updateData.job_post_url = body.job_post_url || null;
         if (body.apply_url !== undefined) updateData.apply_url = body.apply_url || null;
         if (body.recruiter_emails !== undefined) updateData.recruiter_emails = body.recruiter_emails;
+        if (body.recruiter_name !== undefined) updateData.recruiter_name = body.recruiter_name || null;
+        if (body.primary_skills !== undefined) updateData.primary_skills = body.primary_skills || [];
+        if (body.secondary_skills !== undefined) updateData.secondary_skills = body.secondary_skills || [];
+        if (body.location !== undefined) updateData.location = body.location || null;
+        if (body.work_mode !== undefined) updateData.work_mode = body.work_mode || null;
+        if (body.compensation_text !== undefined) updateData.compensation_text = body.compensation_text || null;
         if (body.status !== undefined) updateData.status = body.status;
+        if (body.priority !== undefined) updateData.priority = body.priority || null;
+        if (body.source !== undefined) updateData.source = body.source || null;
+        if (body.next_followup_at !== undefined) updateData.next_followup_at = body.next_followup_at || null;
         if (body.notes !== undefined) updateData.notes = body.notes || null;
 
         // Update job

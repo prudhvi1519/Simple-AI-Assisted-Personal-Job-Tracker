@@ -6,7 +6,11 @@ import {
     JobsListResponse,
     CreateJobRequest,
     JOB_STATUSES,
+    WORK_MODES,
+    PRIORITIES,
     isValidJobStatus,
+    isValidWorkMode,
+    isValidPriority,
     isValidUrl,
 } from "@/lib/supabase/client";
 
@@ -115,6 +119,28 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Validate work_mode if provided
+        if (body.work_mode && !isValidWorkMode(body.work_mode)) {
+            return NextResponse.json(
+                {
+                    error: "Invalid work_mode",
+                    details: `Work mode must be one of: ${WORK_MODES.join(", ")}`,
+                },
+                { status: 400 }
+            );
+        }
+
+        // Validate priority if provided
+        if (body.priority && !isValidPriority(body.priority)) {
+            return NextResponse.json(
+                {
+                    error: "Invalid priority",
+                    details: `Priority must be one of: ${PRIORITIES.join(", ")}`,
+                },
+                { status: 400 }
+            );
+        }
+
         // Prepare insert data
         const insertData = {
             title: body.title || null,
@@ -123,7 +149,16 @@ export async function POST(request: NextRequest) {
             job_post_url: body.job_post_url || null,
             apply_url: body.apply_url || null,
             recruiter_emails: body.recruiter_emails || [],
+            recruiter_name: body.recruiter_name || null,
+            primary_skills: body.primary_skills || [],
+            secondary_skills: body.secondary_skills || [],
+            location: body.location || null,
+            work_mode: body.work_mode || null,
+            compensation_text: body.compensation_text || null,
             status,
+            priority: body.priority || null,
+            source: body.source || null,
+            next_followup_at: body.next_followup_at || null,
             notes: body.notes || null,
         };
 
