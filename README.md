@@ -40,13 +40,23 @@ A simple personal job application tracker with AI-assist powered by Google Gemin
 ### Supabase Setup
 
 1. Create a new project at [supabase.com](https://supabase.com)
-2. Go to **SQL Editor** in your Supabase dashboard
-3. Open and run the contents of `supabase/schema.sql`
+
+2. **Database**: Go to **SQL Editor** and run the contents of `supabase/schema.sql`
    - This creates the `jobs`, `job_files`, and `ai_runs` tables
-   - No RLS policies needed (private app)
-4. Go to **Settings > API** and copy:
+   - **Important**: RLS (Row Level Security) must be DISABLED on all tables for MVP
+
+3. **Storage**: Go to **Storage** and create a new bucket:
+   - Bucket name: `job-files`
+   - Public bucket: Either public or private is fine (downloads are proxied via API)
+   - File size limit: 10MB recommended
+
+4. **API Keys**: Go to **Settings > API** and copy:
    - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
    - anon public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+**Storage Path Convention**:
+- Resumes: `jobs/<jobId>/resume/<fileId>-<originalName>`
+- Documents: `jobs/<jobId>/document/<fileId>-<originalName>`
 
 ### Environment Setup
 

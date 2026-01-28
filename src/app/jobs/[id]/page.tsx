@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
-import { JobDetailResponse, JobFile, JOB_STATUSES, JobStatus } from "@/lib/supabase/client";
+import { JobDetailResponse, JobFile, JOB_STATUSES, JobStatus, FileType } from "@/lib/supabase/client";
 import { formatDate, formatRelativeTime, formatFileSize } from "@/lib/utils/format";
 
 interface JobDetailPageProps {
@@ -45,6 +45,13 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
     // Delete modal
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [deleting, setDeleting] = useState(false);
+
+    // File upload state
+    const [uploadingResume, setUploadingResume] = useState(false);
+    const [uploadingDocument, setUploadingDocument] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const resumeInputRef = useRef<HTMLInputElement>(null);
+    const documentInputRef = useRef<HTMLInputElement>(null);
 
     // Resolve params
     useEffect(() => {
@@ -110,7 +117,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         setSaveError(null);
 
         try {
-            // Parse recruiter emails from comma-separated string
             const emails = formData.recruiter_emails
                 .split(",")
                 .map((e) => e.trim())
@@ -136,7 +142,6 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                 throw new Error(err.error || "Failed to save changes");
             }
 
-            // Refresh job data
             await fetchJob();
             setHasChanges(false);
         } catch (err) {
@@ -161,6 +166,70 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         } catch (err) {
             alert(err instanceof Error ? err.message : "Failed to delete job");
             setDeleting(false);
+        }
+    };
+
+    // Handle file upload
+    const handleFileUpload = async (file: File, fileType: FileType) => {
+        if (!id) return;
+
+        const setUploading = fileType === "resume" ? setUploadingResume : setUploadingDocument;
+        setUploading(true);
+        setUploadError(null);
+
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("fileType", fileType);
+
+            const res = await fetch(`/api/jobs/${id}/files`, {
+                method: "POST",
+                body: formData,
+            });
+
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to upload file");
+            }
+
+            // Refresh job data to show new file and potential status change
+            await fetchJob();
+        } catch (err) {
+            setUploadError(err instanceof Error ? err.message : "Upload failed");
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    // Handle file input change
+    const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>, fileType: FileType) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            handleFileUpload(file, fileType);
+        }
+        // Reset input so same file can be selected again
+        e.target.value = "";
+    };
+
+    // Handle file download
+    const handleDownload = (fileId: string) => {
+        // Open download URL in new tab - browser will handle download
+        window.open(`/api/files/${fileId}`, "_blank");
+    };
+
+    // Handle file delete
+    const handleDeleteFile = async (fileId: string) => {
+        if (!confirm("Delete this file?")) return;
+
+        try {
+            const res = await fetch(`/api/files/${fileId}`, { method: "DELETE" });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Failed to delete file");
+            }
+            await fetchJob();
+        } catch (err) {
+            alert(err instanceof Error ? err.message : "Failed to delete file");
         }
     };
 
@@ -221,16 +290,10 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     </p>
                 </div>
                 <div className="flex items-center gap-3">
-                    <Button
-                        variant="secondary"
-                        onClick={() => router.push("/jobs")}
-                    >
+                    <Button variant="secondary" onClick={() => router.push("/jobs")}>
                         ← Back
                     </Button>
-                    <Button
-                        variant="danger"
-                        onClick={() => setShowDeleteModal(true)}
-                    >
+                    <Button variant="danger" onClick={() => setShowDeleteModal(true)}>
                         Delete
                     </Button>
                 </div>
@@ -351,6 +414,19 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 
             {/* Files Section */}
             <div className="space-y-4">
+                {/* Upload Error */}
+                {uploadError && (
+                    <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 text-sm flex items-center justify-between">
+                        <span>{uploadError}</span>
+                        <button
+                            onClick={() => setUploadError(null)}
+                            className="text-red-600 hover:text-red-800"
+                        >
+                            ×
+                        </button>
+                    </div>
+                )}
+
                 {/* Resumes */}
                 <div className="rounded-lg border border-[var(--border)] p-4">
                     <div className="flex items-center justify-between mb-4">
@@ -360,9 +436,22 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                                 ({resumes.length})
                             </span>
                         </h2>
-                        <Button variant="secondary" disabled title="Upload coming soon">
-                            + Upload Resume
-                        </Button>
+                        <div>
+                            <input
+                                ref={resumeInputRef}
+                                type="file"
+                                accept=".pdf,.doc,.docx"
+                                className="hidden"
+                                onChange={(e) => handleFileInputChange(e, "resume")}
+                            />
+                            <Button
+                                variant="secondary"
+                                onClick={() => resumeInputRef.current?.click()}
+                                isLoading={uploadingResume}
+                            >
+                                + Upload Resume
+                            </Button>
+                        </div>
                     </div>
 
                     {resumes.length === 0 ? (
@@ -370,7 +459,11 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                             No resumes uploaded yet.
                         </p>
                     ) : (
-                        <FileList files={resumes} />
+                        <FileList
+                            files={resumes}
+                            onDownload={handleDownload}
+                            onDelete={handleDeleteFile}
+                        />
                     )}
                 </div>
 
@@ -383,9 +476,21 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                                 ({documents.length})
                             </span>
                         </h2>
-                        <Button variant="secondary" disabled title="Upload coming soon">
-                            + Upload Document
-                        </Button>
+                        <div>
+                            <input
+                                ref={documentInputRef}
+                                type="file"
+                                className="hidden"
+                                onChange={(e) => handleFileInputChange(e, "document")}
+                            />
+                            <Button
+                                variant="secondary"
+                                onClick={() => documentInputRef.current?.click()}
+                                isLoading={uploadingDocument}
+                            >
+                                + Upload Document
+                            </Button>
+                        </div>
                     </div>
 
                     {documents.length === 0 ? (
@@ -393,7 +498,11 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                             No documents uploaded yet.
                         </p>
                     ) : (
-                        <FileList files={documents} />
+                        <FileList
+                            files={documents}
+                            onDownload={handleDownload}
+                            onDelete={handleDeleteFile}
+                        />
                     )}
                 </div>
             </div>
@@ -418,11 +527,7 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>
                         Cancel
                     </Button>
-                    <Button
-                        variant="danger"
-                        onClick={handleDelete}
-                        isLoading={deleting}
-                    >
+                    <Button variant="danger" onClick={handleDelete} isLoading={deleting}>
                         Delete Job
                     </Button>
                 </div>
@@ -432,7 +537,13 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
 }
 
 // File list component
-function FileList({ files }: { files: JobFile[] }) {
+interface FileListProps {
+    files: JobFile[];
+    onDownload: (fileId: string) => void;
+    onDelete: (fileId: string) => void;
+}
+
+function FileList({ files, onDownload, onDelete }: FileListProps) {
     return (
         <div className="divide-y divide-[var(--border)]">
             {files.map((file) => (
@@ -451,16 +562,14 @@ function FileList({ files }: { files: JobFile[] }) {
                     <div className="flex items-center gap-2 ml-4">
                         <Button
                             variant="ghost"
-                            disabled
-                            title="Download coming soon"
+                            onClick={() => onDownload(file.id)}
                             className="text-sm px-2 py-1"
                         >
                             Download
                         </Button>
                         <Button
                             variant="ghost"
-                            disabled
-                            title="Delete coming soon"
+                            onClick={() => onDelete(file.id)}
                             className="text-sm px-2 py-1 text-red-600"
                         >
                             Delete
