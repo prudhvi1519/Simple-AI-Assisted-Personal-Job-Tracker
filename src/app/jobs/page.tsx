@@ -264,7 +264,7 @@ export default function JobsPage() {
 
             {/* Jobs Table */}
             {!loading && !error && jobs.length > 0 && (
-                <div className="overflow-hidden rounded-lg border border-[var(--border)]">
+                <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
                     <table className="w-full">
                         <thead className="bg-gray-50 dark:bg-gray-900">
                             <tr>
