@@ -48,14 +48,23 @@ export async function GET() {
             "id",
             "title",
             "company_name",
+            "status",
+            "priority",
+            "work_mode",
+            "location",
             "req_id",
             "job_post_url",
             "apply_url",
+            "recruiter_name",
             "recruiter_emails",
-            "status",
+            "primary_skills",
+            "secondary_skills",
+            "compensation_text",
+            "next_followup_at",
             "notes",
             "created_at",
             "updated_at",
+            "source",
         ];
 
         // Build CSV content
@@ -64,9 +73,12 @@ export async function GET() {
         for (const job of jobList) {
             const row = columns.map((col) => {
                 const val = job[col as keyof Job];
-                if (col === "recruiter_emails" && Array.isArray(val)) {
-                    return escapeCsvField(val.join(";"));
+
+                // Handle arrays (emails, skills)
+                if (Array.isArray(val)) {
+                    return escapeCsvField(val.join(", "));
                 }
+
                 return escapeCsvField(val);
             });
             csv += row.join(",") + "\n";
