@@ -6,9 +6,12 @@ type BadgeVariant =
     | "danger"
     | "info";
 
+type BadgeSize = "sm" | "md";
+
 interface BadgeProps {
     children: React.ReactNode;
     variant?: BadgeVariant;
+    size?: BadgeSize;
     className?: string;
 }
 
@@ -21,17 +24,23 @@ const variantStyles: Record<BadgeVariant, string> = {
     info: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200",
 };
 
+const sizeStyles: Record<BadgeSize, string> = {
+    sm: "px-1.5 py-0.5 text-[10px]",
+    md: "px-2.5 py-0.5 text-xs",
+};
+
 export default function Badge({
     children,
     variant = "default",
+    size = "md",
     className = "",
 }: BadgeProps) {
     return (
         <span
             className={`
         inline-flex items-center
-        rounded-full px-2.5 py-0.5
-        text-xs font-medium
+        rounded-full font-medium
+        ${sizeStyles[size]}
         ${variantStyles[variant]}
         ${className}
       `}

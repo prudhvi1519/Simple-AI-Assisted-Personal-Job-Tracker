@@ -7,6 +7,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
+import Badge from "@/components/ui/Badge";
 import { Job, JOB_STATUSES, JobStatus } from "@/lib/supabase/client";
 import { formatRelativeTime } from "@/lib/utils/format";
 
@@ -40,6 +41,24 @@ function getStatusColor(status: string): string {
         default:
             return "bg-gray-100 text-gray-800";
     }
+}
+
+// Get missing info badges for a job (max 2, priority: Link > Title > Company)
+function getMissingBadges(job: Job): string[] {
+    const missing: string[] = [];
+
+    // Priority order: Missing Link > Missing Title > Missing Company
+    if (!job.job_post_url && !job.apply_url) {
+        missing.push("Missing Link");
+    }
+    if (!job.title) {
+        missing.push("Missing Title");
+    }
+    if (!job.company_name) {
+        missing.push("Missing Company");
+    }
+
+    return missing.slice(0, 2); // Max 2 badges
 }
 
 export default function JobsPage() {
@@ -299,6 +318,16 @@ export default function JobsPage() {
                                         >
                                             {job.status}
                                         </span>
+                                        {/* Missing info badges */}
+                                        {getMissingBadges(job).length > 0 && (
+                                            <div className="flex gap-1 mt-1">
+                                                {getMissingBadges(job).map((badge) => (
+                                                    <Badge key={badge} variant="warning" size="sm">
+                                                        {badge}
+                                                    </Badge>
+                                                ))}
+                                            </div>
+                                        )}
                                     </td>
                                     <td className="px-4 py-3 text-sm text-[var(--muted)]">
                                         {formatRelativeTime(job.updated_at)}

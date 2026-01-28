@@ -83,6 +83,7 @@ export interface JobDetailResponse extends Job {
         resume: number;
         document: number;
     };
+    files: JobFile[];
     latest_ai_run: AiRun | null;
 }
 

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
 import {
     Job,
+    JobFile,
     JobDetailResponse,
     UpdateJobRequest,
     AiRun,
@@ -17,7 +18,7 @@ interface RouteParams {
     params: Promise<{ id: string }>;
 }
 
-// GET /api/jobs/[id] - Get job details with file counts and latest AI run
+// GET /api/jobs/[id] - Get job details with files and latest AI run
 export async function GET(request: NextRequest, { params }: RouteParams) {
     try {
         const { id } = await params;
@@ -44,15 +45,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             );
         }
 
-        // Fetch file counts
+        // Fetch all files for the job
         const { data: files } = await supabase
             .from("job_files")
-            .select("file_type")
-            .eq("job_id", id);
+            .select("*")
+            .eq("job_id", id)
+            .order("created_at", { ascending: false });
 
+        const jobFiles = (files || []) as JobFile[];
+
+        // Calculate file counts from files array
         const fileCounts = {
-            resume: (files || []).filter((f) => f.file_type === "resume").length,
-            document: (files || []).filter((f) => f.file_type === "document").length,
+            resume: jobFiles.filter((f) => f.file_type === "resume").length,
+            document: jobFiles.filter((f) => f.file_type === "document").length,
         };
 
         // Fetch latest AI run
@@ -66,6 +71,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         const response: JobDetailResponse = {
             ...(job as Job),
             file_counts: fileCounts,
+            files: jobFiles,
             latest_ai_run: (aiRuns && aiRuns.length > 0 ? aiRuns[0] : null) as AiRun | null,
         };
 
