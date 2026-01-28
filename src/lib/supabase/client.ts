@@ -1,53 +1,26 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Client-side Supabase client
 // Use this for browser/client components
+// Lazy initialization to avoid build-time errors
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+let _supabase: SupabaseClient | null = null;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export function getSupabase(): SupabaseClient {
+    if (_supabase) return _supabase;
 
-// Type definitions for our database
-export type JobStatus =
-    | "Saved"
-    | "Applied"
-    | "Recruiter Screen"
-    | "Technical"
-    | "Final"
-    | "Offer"
-    | "Rejected"
-    | "Ghosted";
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-export type FileType = "resume" | "document";
+    if (!supabaseUrl || !supabaseAnonKey) {
+        throw new Error(
+            "Missing Supabase environment variables. Check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY."
+        );
+    }
 
-export interface Job {
-    id: string;
-    company: string | null;
-    role: string | null;
-    status: JobStatus;
-    url: string | null;
-    notes: string | null;
-    created_at: string;
-    updated_at: string;
+    _supabase = createClient(supabaseUrl, supabaseAnonKey);
+    return _supabase;
 }
 
-export interface JobFile {
-    id: string;
-    job_id: string;
-    file_name: string;
-    file_type: FileType;
-    storage_path: string;
-    created_at: string;
-}
-
-export const JOB_STATUSES: JobStatus[] = [
-    "Saved",
-    "Applied",
-    "Recruiter Screen",
-    "Technical",
-    "Final",
-    "Offer",
-    "Rejected",
-    "Ghosted",
-];
+// Re-export all types
+export * from "./types";

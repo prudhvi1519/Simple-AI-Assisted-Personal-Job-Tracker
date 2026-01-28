@@ -5,20 +5,26 @@ import { Job } from "@/lib/supabase/client";
  */
 export function jobsToCsv(jobs: Job[]): string {
     const headers = [
+        "Title",
         "Company",
-        "Role",
+        "Req ID",
         "Status",
-        "URL",
+        "Job URL",
+        "Apply URL",
+        "Recruiter Emails",
         "Notes",
         "Created",
         "Updated",
     ];
 
     const rows = jobs.map((job) => [
-        escapeCsvField(job.company || ""),
-        escapeCsvField(job.role || ""),
+        escapeCsvField(job.title || ""),
+        escapeCsvField(job.company_name || ""),
+        escapeCsvField(job.req_id || ""),
         job.status,
-        job.url || "",
+        job.job_post_url || "",
+        job.apply_url || "",
+        job.recruiter_emails.join("; "),
         escapeCsvField(job.notes || ""),
         job.created_at,
         job.updated_at,

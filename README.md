@@ -13,7 +13,7 @@ A simple personal job application tracker with AI-assist powered by Google Gemin
 
 ## Features
 
-- Track job applications with company, role, status, URL, and notes
+- Track job applications with title, company, status, URLs, and notes
 - Status tracking: Saved → Applied → Recruiter Screen → Technical → Final → Offer/Rejected/Ghosted
 - Upload resumes and documents per job (multiple files allowed)
 - AI-assist to auto-fill job details from job posting URLs or text
@@ -26,7 +26,7 @@ A simple personal job application tracker with AI-assist powered by Google Gemin
 - **No RLS (Row Level Security)** - Single user, no multi-tenant concerns
 - **No document versioning** - Duplicate file names allowed, multiple files per job
 - **Optional fields** - All job fields are optional except status
-- **Auto-status rule**: Uploading a resume sets status to "Applied" only if current status is "Saved" or empty
+- **Auto-status rule**: Uploading a resume sets status to "Applied" only if current status is "Saved"
 
 ## Getting Started
 
@@ -37,28 +37,41 @@ A simple personal job application tracker with AI-assist powered by Google Gemin
 - Supabase account
 - Gemini API key
 
-### Setup
+### Supabase Setup
 
-1. Clone the repository
-2. Copy `.env.example` to `.env.local` and fill in your values:
+1. Create a new project at [supabase.com](https://supabase.com)
+2. Go to **SQL Editor** in your Supabase dashboard
+3. Open and run the contents of `supabase/schema.sql`
+   - This creates the `jobs`, `job_files`, and `ai_runs` tables
+   - No RLS policies needed (private app)
+4. Go to **Settings > API** and copy:
+   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
+   - anon public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+### Environment Setup
+
+1. Copy `.env.example` to `.env.local`:
 
 ```bash
 cp .env.example .env.local
 ```
 
-3. Install dependencies:
+2. Fill in your values:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+### Install and Run
 
 ```bash
 npm install
-```
-
-4. Run the development server:
-
-```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000)
 
 ## Database Schema
 
@@ -66,23 +79,40 @@ npm run dev
 | Column | Type | Description |
 |--------|------|-------------|
 | id | uuid | Primary key |
-| company | text | Company name (optional) |
-| role | text | Job title (optional) |
-| status | text | Application status |
-| url | text | Job posting URL (optional) |
+| title | text | Job title (optional) |
+| company_name | text | Company name (optional) |
+| req_id | text | Requisition ID (optional) |
+| job_post_url | text | Job posting URL (optional) |
+| apply_url | text | Application URL (optional) |
+| recruiter_emails | text[] | Array of recruiter emails |
+| status | text | Application status (required) |
 | notes | text | Notes (optional) |
-| created_at | timestamp | Created timestamp |
-| updated_at | timestamp | Updated timestamp |
+| created_at | timestamptz | Created timestamp |
+| updated_at | timestamptz | Updated timestamp |
 
 ### job_files
 | Column | Type | Description |
 |--------|------|-------------|
 | id | uuid | Primary key |
 | job_id | uuid | Foreign key to jobs |
-| file_name | text | Original file name |
 | file_type | text | 'resume' or 'document' |
+| original_name | text | Original file name |
 | storage_path | text | Supabase Storage path |
-| created_at | timestamp | Upload timestamp |
+| mime_type | text | MIME type (optional) |
+| size_bytes | int | File size in bytes (optional) |
+| created_at | timestamptz | Upload timestamp |
+
+### ai_runs
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| job_id | uuid | Foreign key to jobs |
+| input_text | text | Raw input (job posting text) |
+| extracted | jsonb | Extracted field values |
+| confidence | jsonb | Confidence scores per field |
+| sources | jsonb | Source/evidence per field |
+| warnings | jsonb | Array of warnings |
+| created_at | timestamptz | Run timestamp |
 
 ## Status Values
 
@@ -94,6 +124,18 @@ npm run dev
 6. Offer
 7. Rejected
 8. Ghosted
+
+## API Endpoints
+
+### Jobs
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/jobs` | List jobs (query, status filters) |
+| POST | `/api/jobs` | Create job |
+| GET | `/api/jobs/[id]` | Get job details + file counts |
+| PUT | `/api/jobs/[id]` | Update job (partial) |
+| DELETE | `/api/jobs/[id]` | Delete job |
 
 ## AI Assist
 
