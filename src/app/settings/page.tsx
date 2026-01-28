@@ -3,6 +3,11 @@
 import Button from "@/components/ui/Button";
 
 export default function SettingsPage() {
+    // Handle downloads
+    const handleDownload = (format: "csv" | "json") => {
+        window.open(`/api/export/jobs.${format}`, "_blank");
+    };
+
     return (
         <div className="max-w-2xl space-y-6">
             <div>
@@ -47,9 +52,16 @@ export default function SettingsPage() {
             <div className="rounded-lg border border-[var(--border)] p-4 space-y-4">
                 <h2 className="font-medium">Export Data</h2>
                 <p className="text-sm text-[var(--muted)]">
-                    Download all your job application data as a CSV file.
+                    Download all your job application data for backup or analysis.
                 </p>
-                <Button variant="secondary" title="Coming soon">Export as CSV</Button>
+                <div className="flex gap-3">
+                    <Button variant="secondary" onClick={() => handleDownload("csv")}>
+                        Export as CSV
+                    </Button>
+                    <Button variant="secondary" onClick={() => handleDownload("json")}>
+                        Export as JSON
+                    </Button>
+                </div>
             </div>
 
             {/* Danger zone */}
@@ -60,7 +72,7 @@ export default function SettingsPage() {
                 <p className="text-sm text-red-600 dark:text-red-400">
                     Permanently delete all your data. This action cannot be undone.
                 </p>
-                <Button variant="danger" title="Coming soon">Delete All Data</Button>
+                <Button variant="danger" title="Coming soon" disabled>Delete All Data</Button>
             </div>
         </div>
     );
