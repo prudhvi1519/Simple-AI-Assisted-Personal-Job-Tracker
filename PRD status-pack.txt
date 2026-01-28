@@ -1,0 +1,322 @@
+# Status Pack — Simple AI-Assisted Personal Job Tracker (Netlify + Supabase + Gemini)
+
+Production URL: https://simple-job-tracker-ai.netlify.app  
+Repository: https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker  
+Stack: Next.js 14 (App Router) + Supabase Postgres + Supabase Storage + Gemini AI + Netlify  
+Auth: Not included (MVP assumes private usage)
+
+---
+
+## 1) PRD Alignment Summary
+
+### MVP Goals (PRD) → Status
+- Jobs CRUD with optional fields → ✅ Implemented
+- Manual status management → ✅ Implemented
+- Per-job file handling (resume/docs) → ✅ Implemented
+- Resume upload auto-sets status to Applied (safe rule) → ✅ Implemented + Verified
+- Per-row AI extraction with preview + selective apply → ✅ Implemented + Improved UX
+- Search + status filter → ✅ Implemented
+- Export CSV/JSON → ✅ Implemented (plus Manifest export added)
+- Netlify deploy via CLI/GitHub → ✅ Implemented
+
+### Success Criteria (PRD) → Status
+- Add a job row in < 10 seconds → ✅ Preserved (Add modal kept minimal; advanced fields behind accordion)
+- AI extract usable output quickly → ✅ Works; URL fetch may be blocked; JD paste is reliable
+- No broken file downloads → ✅ Verified
+- AI never invents values → ✅ Enforced (unknown → null/[]; strict JSON + confidence/sources)
+
+---
+
+## 2) Data Model (Supabase)
+
+### Table: jobs
+Core PRD fields
+- id uuid PK
+- title text null
+- company_name text null
+- req_id text null
+- job_post_url text null
+- apply_url text null
+- recruiter_emails text[] default {}
+- status text default 'Saved'
+- notes text null
+- created_at timestamptz default now()
+- updated_at timestamptz default now()
+
+Enhancement fields (added after MVP)
+- primary_skills text[] not null default '{}'
+- secondary_skills text[] not null default '{}'
+- location text null
+- work_mode text null with CHECK (Remote|Hybrid|Onsite|Unknown)
+- compensation_text text null
+- next_followup_at timestamptz null
+- priority text null with CHECK (Low|Medium|High)
+- source text null
+- recruiter_name text null
+
+Constraints
+- jobs_work_mode_check: allows NULL or one of Remote|Hybrid|Onsite|Unknown
+- jobs_priority_check: allows NULL or one of Low|Medium|High
+
+updated_at behavior
+- Updates on job field edits → ✅
+- Updates on status change → ✅
+- Updates when resume upload triggers status bump → ✅
+- Does NOT update on document upload (no job row change) → ✅ Accepted design
+
+---
+
+### Table: job_files
+- id uuid PK
+- job_id uuid FK → jobs(id) ON DELETE CASCADE
+- file_type text ('resume' | 'document')
+- original_name text
+- storage_path text
+- mime_type text
+- size_bytes int
+- created_at timestamptz default now()
+
+---
+
+### Table: ai_runs
+- id uuid PK
+- job_id uuid FK → jobs(id) ON DELETE CASCADE
+- input_text text (truncated)
+- extracted jsonb
+- confidence jsonb
+- sources jsonb
+- warnings jsonb
+- created_at timestamptz default now()
+
+---
+
+## 3) Supabase Storage Design
+
+Bucket: job-files  
+Path convention
+- jobs/<jobId>/resume/<fileId>-<originalName>
+- jobs/<jobId>/document/<fileId>-<originalName>
+
+Duplicate filenames: Allowed (fileId ensures uniqueness)  
+Delete behavior: Verified; deleted files return 404
+
+---
+
+## 4) Status Logic (Business Rules)
+
+### Manual statuses
+Canonical statuses are centralized and reused in UI/logic:
+- Saved → Applied → Recruiter Screen → Technical → Final → Offer → Rejected → Ghosted
+
+### Resume upload auto-status (PRD rule)
+On POST /api/jobs/:id/files:
+- If fileType=resume AND job.status is Saved or empty → set status to Applied
+- Otherwise (Technical/Offer/etc.) → do NOT change status
+
+Verified
+- Resume upload in Saved → status bumps to Applied ✅
+- Resume upload in Technical → status unchanged ✅
+- Document upload → status unchanged ✅
+
+---
+
+## 5) Backend/API (Next.js route handlers)
+
+### Jobs
+- GET /api/jobs?query=&status=&priority=&work_mode= → ✅
+  - Search + filters supported (expanded beyond PRD)
+- POST /api/jobs → ✅
+  - Accepts optional fields; validates work_mode and priority (400 on invalid)
+- GET /api/jobs/:id → ✅
+  - Returns job + file counts/list metadata
+- PUT /api/jobs/:id → ✅
+- DELETE /api/jobs/:id → ✅
+
+### Files
+- POST /api/jobs/:id/files (multipart: file, fileType) → ✅
+  - Applies resume auto-status rule
+- GET /api/files/:fileId → ✅ download
+- DELETE /api/files/:fileId → ✅ delete
+
+### AI
+- POST /api/jobs/:id/ai-extract → ✅
+  - Inputs: pastedText (optional), jobPostUrl (optional), applyUrl (optional)
+  - Requires at least ONE input; UI blocks empty and backend returns 400
+  - URL fetch may fail (blocked/404) → warning suggests pasting JD text
+  - Stores run in ai_runs
+
+- POST /api/jobs/:id/ai-apply → ✅
+  - Applies selected updates only
+  - Validates work_mode and priority
+  - Maps AI “extras” to real columns (enhanced vs original PRD):
+    - location → jobs.location
+    - workMode → jobs.work_mode
+    - skills[] → split:
+      - first 6 → primary_skills
+      - remaining → secondary_skills
+      - dedupe + trim applied
+    - summary remains notes append (only if selected)
+
+### Exports
+- GET /api/export/jobs.json → ✅ includes new fields
+- GET /api/export/jobs.csv → ✅ includes new columns; skills as comma-separated
+- GET /api/export/manifest.json → ✅ backup export (jobs + associated file metadata)
+
+### Health
+- GET /api/health/env → ✅ env presence check
+- GET /api/health/storage → ✅ bucket health
+- GET /api/health/schema → ✅ column existence smoke alarm (prevents schema mismatch breaks)
+
+---
+
+## 6) AI Behavior (Gemini)
+
+### Strict JSON Contract
+Gemini responses are required to be strict JSON with:
+- Unknown → null / [] (no guessing)
+- Confidence per field
+- Source per field: pasted_text | job_page | apply_page | inferred | user_input
+- Warnings array
+
+### Apply Rules
+- Only selected fields are applied
+- No invention of missing values
+- Summary appends to notes only if selected
+
+### UX Improvements (implemented)
+- Diff view showing current vs suggested
+- Highlight changes
+- Bulk select all/deselect all
+- Sticky header
+- Modal internal scroll, safe on mobile
+- Clear labels for “appends to notes”
+
+---
+
+## 7) UI/UX Implemented
+
+### Jobs List (/jobs)
+- Search input → ✅
+- Filters:
+  - Status → ✅
+  - Priority → ✅ (added)
+  - Work mode → ✅ (added)
+- Desktop: Table view → ✅
+  - Details column shows priority pill + top 2 skill chips (+N if more)
+- Mobile: Card view → ✅
+  - Shows status + priority + top skills + follow-up label if present
+- Actions:
+  - ✨ AI Assist → opens AI modal
+  - ✏️ Edit → navigates to Job Detail
+  - 🗑️ Delete → guarded confirmation
+
+### Job Detail (/jobs/[id])
+- Editable fields + status dropdown + notes → ✅
+- Files sections:
+  - Resume upload/list/download/delete → ✅
+  - Document upload/list/download/delete → ✅
+- New sections:
+  - Details: recruiter_name, source, priority, work_mode, location, compensation, next_followup_at → ✅
+  - Skills: primary/secondary skills display + edit (comma input normalized to arrays) → ✅
+
+### Add Job Modal
+- Minimal fast inputs preserved → ✅
+- “More details” accordion for advanced fields → ✅
+- Optional resume upload in modal → ✅
+  - Two-step: create job then upload resume
+  - Non-blocking failures (job stays created)
+  - Upload feedback: uploading/success/error + retry without recreating job
+
+### Modal responsiveness
+- Fixed viewport overflow: max-height, internal scroll, header fixed → ✅
+
+### Mobile sidebar
+- Drawer sidebar on mobile with hamburger:
+  - overlay close
+  - Escape close
+  - scroll lock
+- Desktop sidebar remains visible → ✅
+
+---
+
+## 8) Guardrails & Safety
+
+### Destructive actions
+- Delete job (list + detail): confirmation Modal → ✅
+- Delete file: confirmation prompt → ✅
+- Verified: job delete returns 404 afterward; file delete returns 404 afterward → ✅
+
+### Schema mismatch protection
+- /api/health/schema detects missing columns → ✅
+- Prevents production surprises when code and DB drift → ✅
+
+---
+
+## 9) Deployment & Branching
+
+- Default branch: main ✅
+- master removed ✅
+- Netlify deploy from main ✅
+- Env vars:
+  - NEXT_PUBLIC_SUPABASE_URL
+  - NEXT_PUBLIC_SUPABASE_ANON_KEY
+  - GEMINI_API_KEY ✅
+
+---
+
+## 10) Verification / Regression Coverage
+
+### API-Level
+- Create job empty → ✅
+- Update title/status → ✅
+- Resume upload auto-status → ✅
+- Document upload status unchanged → ✅
+- File download/delete → ✅
+- AI extract (JD-only, URL-only, empty input) → ✅
+- AI apply selective updates → ✅
+- Exports CSV/JSON/Manifest → ✅
+- Health endpoints env/storage/schema → ✅
+- Production verification performed → ✅
+
+### UI-Level
+- Modal overflow fixed → ✅
+- Mobile cards/table responsive → ✅
+- Sidebar drawer implemented → ✅
+- Add Job resume upload UX (retry/success) → ✅
+
+---
+
+## 11) Deviations From Original PRD (Intentional Enhancements)
+
+- PRD initially planned extras (skills/location/workMode) to append to notes.
+  - Updated: these now map to real DB columns (better filtering/search/export).
+- Added filters for priority and work_mode.
+- Added manifest.json export (backup/migration safety).
+- Added health/schema endpoint (prevents schema mismatch failures).
+
+---
+
+## 12) Known Operational Notes
+
+- On Windows PowerShell, curl.exe -d "{...}" can break on complex JSON.
+  Preferred:
+  - Invoke-RestMethod for JSON bodies
+  - or curl.exe --data-binary @body.json
+
+---
+
+## 13) Current Feature Set (Checklist)
+
+✅ Jobs CRUD  
+✅ Manual status management  
+✅ Files per job (resume/doc) with download/delete  
+✅ Resume upload → Applied only if Saved/empty  
+✅ AI extract per job with preview + selective apply  
+✅ AI does not invent values (null/[] + confidence + sources)  
+✅ Search + filters (status, priority, work_mode)  
+✅ Export: CSV/JSON + Manifest backup  
+✅ Mobile responsive (cards + drawer sidebar)  
+✅ Health checks: env/storage/schema  
+✅ Netlify deployment stable on main
+
+---

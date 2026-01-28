@@ -1,180 +1,140 @@
-# Job Tracker
+# Simple AI-Assisted Personal Job Tracker
 
-A simple personal job application tracker with AI-assist powered by Google Gemini.
+A powerful, self-hosted job application tracker built with Next.js, Supabase, and Gemini AI to streamline your job search with automated data extraction and management.
 
-## Tech Stack
+## 🚀 Live Demo & Repo
+- **Production Stats**: [https://simple-job-tracker-ai.netlify.app](https://simple-job-tracker-ai.netlify.app)
+- **Repo**: [https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker](https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker)
 
-- **Framework**: Next.js 15 (App Router) + TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: Supabase (PostgreSQL)
-- **File Storage**: Supabase Storage
-- **AI**: Google Gemini API (server-side only)
+## ✨ Feature Highlights
+- **Jobs CRUD**: Manage job applications with advanced fields (Priority, Work Mode, Compensation, etc.).
+- **Smart Status Flow**: Tracking from "Applied" to "Offer" with automated status bumps on file uploads.
+- **File Management**: Upload, view, and delete Resumes and Descriptions securely linked to jobs.
+- **AI Assist**: 
+  - **Extract**: Auto-fill job details (Skills, Location, Emails) from raw text or URLs using Gemini.
+  - **Selective Apply**: Choose which AI suggestions to commit to your database.
+- **Advanced Search & Filters**: Filter by Status, Priority, and Work Mode instantly.
+- **Data Portability**: Full JSON/Manifest exports for backups and CSV exports for reporting.
+- **Health Checks**: Built-in endpoints to verify Environment, Storage, and Database Schema integrity.
+- **Responsive UI**: Optimized Desktop Table and Mobile Card layouts with specialized drawers.
+
+## 🛠️ Tech Stack
+- **Frontend**: Next.js 14 (App Router), TailwindCSS, TypeScript
+- **Backend**: Supabase (Postgres Database, Auth, Storage)
+- **AI**: Google Gemini Pro (via API)
 - **Deployment**: Netlify
 
-## Features
+## ⚡ Quickstart (Local)
 
-- Track job applications with title, company, status, URLs, and notes
-- Status tracking: Saved → Applied → Recruiter Screen → Technical → Final → Offer/Rejected/Ghosted
-- Upload resumes and documents per job (multiple files allowed)
-- AI-assist to auto-fill job details from job posting URLs or text
-- Export data as CSV
-- Dark mode support
+1. **Install Dependencies** (Requires Node 18+)
+   ```powershell
+   npm install
+   ```
 
-## MVP Notes
+2. **Run Development Server**
+   ```powershell
+   npm run dev
+   ```
+   Access at `http://localhost:3000`.
 
-- **No authentication** - This is a private, personal app
-- **No RLS (Row Level Security)** - Single user, no multi-tenant concerns
-- **No document versioning** - Duplicate file names allowed, multiple files per job
-- **Optional fields** - All job fields are optional except status
-- **Auto-status rule**: Uploading a resume sets status to "Applied" only if current status is "Saved"
+3. **Build for Production**
+   ```powershell
+   npm run build
+   ```
 
-## Getting Started
+## 🔐 Environment Variables
 
-### Prerequisites
-
-- Node.js 18+
-- npm
-- Supabase account
-- Gemini API key
-
-### Supabase Setup
-
-1. Create a new project at [supabase.com](https://supabase.com)
-
-2. **Database**: Go to **SQL Editor** and run the contents of `supabase/schema.sql`
-   - This creates the `jobs`, `job_files`, and `ai_runs` tables
-   - **Important**: RLS (Row Level Security) must be DISABLED on all tables for MVP
-
-3. **Storage**: Go to **Storage** and create a new bucket:
-   - Bucket name: `job-files`
-   - Public bucket: Either public or private is fine (downloads are proxied via API)
-   - File size limit: 10MB recommended
-
-4. **API Keys**: Go to **Settings > API** and copy:
-   - Project URL → `NEXT_PUBLIC_SUPABASE_URL`
-   - anon public key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
-**Storage Path Convention**:
-- Resumes: `jobs/<jobId>/resume/<fileId>-<originalName>`
-- Documents: `jobs/<jobId>/document/<fileId>-<originalName>`
-
-### Environment Setup
-
-1. Copy `.env.example` to `.env.local`:
-
-```bash
-cp .env.example .env.local
-```
-
-2. Fill in your values:
+Create a `.env.local` file in the root directory:
 
 ```env
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# Gemini AI
 GEMINI_API_KEY=your-gemini-api-key
 ```
 
-### Install and Run
+**Note:** Never commit `.env.local` to version control.
 
-```bash
-npm install
-npm run dev
+## 🗄️ Supabase Setup
+
+1. **Create Project**: Start a new project at [database.new](https://database.new).
+2. **Setup Storage**: Create a public bucket named `job-files`.
+3. **Apply Migrations**: 
+   - Open specific migration file `supabase/migrations/20260128170000_jobs_fields_upgrade.sql`
+   - Copy contents and run in the Supabase **SQL Editor**.
+4. **Reload Schema**:
+   After applying migrations, force a schema cache reload:
+   ```sql
+   NOTIFY pgrst, 'reload schema';
+   ```
+
+### Data Model Overview
+- **jobs**: Core table storing application details (Title, Company, Status, Skills, etc).
+- **job_files**: Links uploaded files (Resumes, JDs) to jobs.
+- **ai_runs** (planned): Logs AI interaction history.
+
+See `supabase/schema.sql` for the baseline structure.
+
+## 📂 Storage Paths
+Files are organized strictly by logical hierarchy:
+- `jobs/<jobId>/resume/<fileId>-<originalName>`
+- `jobs/<jobId>/document/<fileId>-<originalName>`
+
+## 🔌 API Endpoints (High-Level)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/jobs` | GET, POST | List all jobs / Create new job |
+| `/api/jobs/:id` | GET, PUT, DELETE | Manage specific job |
+| `/api/jobs/:id/files` | POST | Upload file to job |
+| `/api/jobs/:id/ai-extract` | POST | Extract fields from text/URL |
+| `/api/jobs/:id/ai-apply` | POST | Apply AI suggestions to DB |
+| `/api/export/manifest.json` | GET | Full backup of DB + File references |
+| `/api/health/schema` | GET | Verify DB columns match code expectations |
+
+## 🤖 AI Behavior Contract
+The AI is strictly engineered to provide **factual data only**:
+- **No Guessing**: Unknown fields return `null` or `[]`.
+- **Validation**: "Work Mode" and "Priority" values are validated against allowed enums.
+- **Extraction**: Only extract what is explicitly present in the source text.
+- **Manual Override**: AI suggestions are presented in a Diff View; user has final authority to apply changes.
+
+## 💾 Backup & Restore
+The **Manifest Export** acts as the source of truth for your data state.
+- **Backup**: Download `/api/export/manifest.json` regularly.
+- **Files**: Ensure you have copies of files referenced in the manifest (or download via `/api/files/:fileId`).
+
+## 🚀 Deployment (Netlify)
+
+1. **Build Settings**:
+   - Build Command: `npm run build`
+   - Publish Directory: `.next` (or default)
+2. **Environment**: Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `GEMINI_API_KEY` to Site Settings.
+3. **CLI Deploy**:
+   ```powershell
+   netlify deploy --prod
+   ```
+4. **Verification**:
+   Check `https://<site>.netlify.app/api/health/env` after deploy.
+
+## ⚠️ Troubleshooting (Windows PowerShell)
+
+**PowerShell `curl` Pitfall:**
+In PowerShell, `curl` is an alias for `Invoke-WebRequest`, which parses response HTML and breaks on JSON/Binary inputs often.
+
+**Recommended: Use `Invoke-RestMethod`**
+```powershell
+$body = @{ title = "New Job" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/jobs" -ContentType "application/json" -Body $body
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
-
-### Environment Health Check
-
-Verify your env vars are correctly set:
-
-```bash
-curl http://localhost:3000/api/health/env
+**If using `curl.exe`:**
+Always quote JSON or use a file:
+```powershell
+curl.exe -X POST ... -d '@body.json'
 ```
 
-Expected response:
-```json
-{"ok": true, "missing": [], "present": ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "GEMINI_API_KEY"]}
-```
-
-### Security Notes
-
-- **Never commit `.env.local`** - it's gitignored by default
-- **GEMINI_API_KEY is server-side only** - never exposed to client
-- For production (Netlify), set env vars in dashboard or via CLI
-- API routes fail fast with clear errors if env vars are missing
-
-## Database Schema
-
-### jobs
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| title | text | Job title (optional) |
-| company_name | text | Company name (optional) |
-| req_id | text | Requisition ID (optional) |
-| job_post_url | text | Job posting URL (optional) |
-| apply_url | text | Application URL (optional) |
-| recruiter_emails | text[] | Array of recruiter emails |
-| status | text | Application status (required) |
-| notes | text | Notes (optional) |
-| created_at | timestamptz | Created timestamp |
-| updated_at | timestamptz | Updated timestamp |
-
-### job_files
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| job_id | uuid | Foreign key to jobs |
-| file_type | text | 'resume' or 'document' |
-| original_name | text | Original file name |
-| storage_path | text | Supabase Storage path |
-| mime_type | text | MIME type (optional) |
-| size_bytes | int | File size in bytes (optional) |
-| created_at | timestamptz | Upload timestamp |
-
-### ai_runs
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| job_id | uuid | Foreign key to jobs |
-| input_text | text | Raw input (job posting text) |
-| extracted | jsonb | Extracted field values |
-| confidence | jsonb | Confidence scores per field |
-| sources | jsonb | Source/evidence per field |
-| warnings | jsonb | Array of warnings |
-| created_at | timestamptz | Run timestamp |
-
-## Status Values
-
-1. Saved
-2. Applied
-3. Recruiter Screen
-4. Technical
-5. Final
-6. Offer
-7. Rejected
-8. Ghosted
-
-## API Endpoints
-
-### Jobs
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/jobs` | List jobs (query, status filters) |
-| POST | `/api/jobs` | Create job |
-| GET | `/api/jobs/[id]` | Get job details + file counts |
-| PUT | `/api/jobs/[id]` | Update job (partial) |
-| DELETE | `/api/jobs/[id]` | Delete job |
-
-## AI Assist
-
-The AI pencil icon on each job row opens an AI assistant that can:
-- Parse job posting URLs to extract company, role, and details
-- Parse pasted job description text
-- Return structured JSON with confidence scores per field
-- **Never hallucinates** - unknown fields remain empty/null
-
-## License
-
-Private project - not for distribution
+## 📚 Docs Index
+- [STATUS_PACK.md](./STATUS_PACK.md) - Current feature implementation status.
