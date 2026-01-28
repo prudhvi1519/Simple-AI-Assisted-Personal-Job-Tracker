@@ -63,6 +63,21 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         // 2) Parse request body
         const body: ExtractRequestBody = await request.json();
 
+        // 2.5) Validate: at least one of pastedText, jobPostUrl, applyUrl must be provided
+        const hasInput =
+            (body.pastedText && body.pastedText.trim().length > 0) ||
+            (body.jobPostUrl && body.jobPostUrl.trim().length > 0) ||
+            (body.applyUrl && body.applyUrl.trim().length > 0) ||
+            (existingJob.job_post_url && existingJob.job_post_url.trim().length > 0) ||
+            (existingJob.apply_url && existingJob.apply_url.trim().length > 0);
+
+        if (!hasInput) {
+            return NextResponse.json(
+                { error: "Add JD text or a URL to extract from." },
+                { status: 400 }
+            );
+        }
+
         // 3) Build context hints from provided fields + existing job fields
         const hints: ExtractionHints = {
             title: body.title || existingJob.title || undefined,
