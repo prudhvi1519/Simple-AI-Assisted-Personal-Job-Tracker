@@ -1,3 +1,5 @@
+"use client";
+
 import Button from "@/components/ui/Button";
 
 export default function SettingsPage() {
@@ -10,13 +12,44 @@ export default function SettingsPage() {
                 </p>
             </div>
 
+            {/* System Health */}
+            <div className="rounded-lg border border-[var(--border)] p-4 space-y-4">
+                <h2 className="font-medium">System Health</h2>
+                <p className="text-sm text-[var(--muted)]">
+                    Verify connection to external services.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                    <Button
+                        variant="secondary"
+                        onClick={() => window.open('/api/health/env', '_blank')}
+                        className="text-sm"
+                    >
+                        Check Env Vars
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => window.open('/api/health/storage', '_blank')}
+                        className="text-sm"
+                    >
+                        Check Storage
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => window.open('/api/health/ai-runs', '_blank')}
+                        className="text-sm"
+                    >
+                        Check AI Database
+                    </Button>
+                </div>
+            </div>
+
             {/* Export section */}
             <div className="rounded-lg border border-[var(--border)] p-4 space-y-4">
                 <h2 className="font-medium">Export Data</h2>
                 <p className="text-sm text-[var(--muted)]">
                     Download all your job application data as a CSV file.
                 </p>
-                <Button variant="secondary">Export as CSV</Button>
+                <Button variant="secondary" title="Coming soon">Export as CSV</Button>
             </div>
 
             {/* Danger zone */}
@@ -27,7 +60,7 @@ export default function SettingsPage() {
                 <p className="text-sm text-red-600 dark:text-red-400">
                     Permanently delete all your data. This action cannot be undone.
                 </p>
-                <Button variant="danger">Delete All Data</Button>
+                <Button variant="danger" title="Coming soon">Delete All Data</Button>
             </div>
         </div>
     );
