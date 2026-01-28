@@ -117,6 +117,8 @@ export default function JobsPage() {
     // Filters
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
+    const [priorityFilter, setPriorityFilter] = useState("");
+    const [workModeFilter, setWorkModeFilter] = useState("");
 
     // Add Job Modal
     const [showAddModal, setShowAddModal] = useState(false);
@@ -149,6 +151,8 @@ export default function JobsPage() {
             const params = new URLSearchParams();
             if (query) params.set("query", query);
             if (statusFilter) params.set("status", statusFilter);
+            if (priorityFilter) params.set("priority", priorityFilter);
+            if (workModeFilter) params.set("work_mode", workModeFilter);
 
             const res = await fetch(`/api/jobs?${params.toString()}`);
             if (!res.ok) {
@@ -161,10 +165,9 @@ export default function JobsPage() {
             setTotal(data.total);
         } catch (err) {
             setError(err instanceof Error ? err.message : "An error occurred");
-        } finally {
             setLoading(false);
         }
-    }, [query, statusFilter]);
+    }, [query, statusFilter, priorityFilter, workModeFilter]);
 
     // Initial fetch and refetch on filter change
     useEffect(() => {
@@ -356,7 +359,7 @@ export default function JobsPage() {
             </div>
 
             {/* Filters */}
-            <div className="flex gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
                 <div className="flex-1">
                     <Input
                         placeholder="Search jobs..."
@@ -364,12 +367,34 @@ export default function JobsPage() {
                         onChange={(e) => setQuery(e.target.value)}
                     />
                 </div>
-                <div className="w-48">
-                    <Select
-                        options={STATUS_OPTIONS}
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                    />
+                <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
+                    <div className="w-36 flex-shrink-0">
+                        <Select
+                            options={STATUS_OPTIONS}
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                        />
+                    </div>
+                    <div className="w-36 flex-shrink-0">
+                        <Select
+                            options={[
+                                { value: "", label: "All Priorities" },
+                                ...PRIORITIES.map(p => ({ value: p, label: p }))
+                            ]}
+                            value={priorityFilter}
+                            onChange={(e) => setPriorityFilter(e.target.value)}
+                        />
+                    </div>
+                    <div className="w-36 flex-shrink-0">
+                        <Select
+                            options={[
+                                { value: "", label: "All Work Modes" },
+                                ...WORK_MODES.map(m => ({ value: m, label: m }))
+                            ]}
+                            value={workModeFilter}
+                            onChange={(e) => setWorkModeFilter(e.target.value)}
+                        />
+                    </div>
                 </div>
             </div>
 
@@ -412,6 +437,12 @@ export default function JobsPage() {
                                     </th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
                                         Status
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
+                                        Status
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
+                                        Details
                                     </th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
                                         Updated
@@ -470,6 +501,32 @@ export default function JobsPage() {
                                                     ))}
                                                 </div>
                                             )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <div className="flex flex-col gap-1.5 items-start">
+                                                {/* Priority Pill */}
+                                                {job.priority && (
+                                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${job.priority === 'High' ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/30' :
+                                                            job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/30' :
+                                                                'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
+                                                        }`}>
+                                                        {job.priority}
+                                                    </span>
+                                                )}
+                                                {/* Skills Chips (Top 2) */}
+                                                {job.primary_skills && job.primary_skills.length > 0 && (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {job.primary_skills.slice(0, 2).map(skill => (
+                                                            <span key={skill} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
+                                                                {skill}
+                                                            </span>
+                                                        ))}
+                                                        {job.primary_skills.length > 2 && (
+                                                            <span className="text-[10px] text-[var(--muted)]">+{job.primary_skills.length - 2}</span>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-[var(--muted)]">
                                             {formatRelativeTime(job.updated_at)}
@@ -584,6 +641,18 @@ export default function JobsPage() {
                                                 {badge}
                                             </Badge>
                                         ))}
+                                    </div>
+                                )}
+
+                                {/* Priority (Mobile) */}
+                                {job.priority && (
+                                    <div className="flex">
+                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${job.priority === 'High' ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/30' :
+                                                job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/30' :
+                                                    'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
+                                            }`}>
+                                            {job.priority} Priority
+                                        </span>
                                     </div>
                                 )}
 
