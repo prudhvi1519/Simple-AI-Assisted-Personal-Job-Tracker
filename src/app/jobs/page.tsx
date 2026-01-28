@@ -262,152 +262,282 @@ export default function JobsPage() {
                 </div>
             )}
 
-            {/* Jobs Table */}
+            {/* Jobs Table (Desktop) */}
             {!loading && !error && jobs.length > 0 && (
-                <div className="overflow-x-auto rounded-lg border border-[var(--border)]">
-                    <table className="w-full">
-                        <thead className="bg-gray-50 dark:bg-gray-900">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                    Title
-                                </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                    Company
-                                </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                    Status
-                                </th>
-                                <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                    Updated
-                                </th>
-                                <th className="px-4 py-3 text-right text-sm font-medium text-[var(--muted)]">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-[var(--border)]">
-                            {jobs.map((job) => (
-                                <tr
-                                    key={job.id}
-                                    className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
-                                >
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium">
+                <>
+                    {/* Desktop View: Table */}
+                    <div className="hidden md:block overflow-hidden rounded-lg border border-[var(--border)]">
+                        <table className="w-full">
+                            <thead className="bg-gray-50 dark:bg-gray-900">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
+                                        Title
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
+                                        Company
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
+                                        Status
+                                    </th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
+                                        Updated
+                                    </th>
+                                    <th className="px-4 py-3 text-right text-sm font-medium text-[var(--muted)]">
+                                        Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[var(--border)]">
+                                {jobs.map((job) => (
+                                    <tr
+                                        key={job.id}
+                                        className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
+                                    >
+                                        <td className="px-4 py-3">
+                                            <div className="font-medium">
+                                                {job.title || (
+                                                    <span className="text-[var(--muted)] italic">
+                                                        No title
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {job.job_post_url && (
+                                                <a
+                                                    href={job.job_post_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-xs text-[var(--primary)] hover:underline"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                >
+                                                    View posting →
+                                                </a>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            {job.company_name || (
+                                                <span className="text-[var(--muted)] italic">—</span>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <span
+                                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
+                                                    job.status
+                                                )}`}
+                                            >
+                                                {job.status}
+                                            </span>
+                                            {/* Missing info badges */}
+                                            {getMissingBadges(job).length > 0 && (
+                                                <div className="flex gap-1 mt-1">
+                                                    {getMissingBadges(job).map((badge) => (
+                                                        <Badge key={badge} variant="warning" size="sm">
+                                                            {badge}
+                                                        </Badge>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-[var(--muted)]">
+                                            {formatRelativeTime(job.updated_at)}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {/* AI Assist button - Sparkles */}
+                                                <button
+                                                    className="p-1.5 rounded-md hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-purple-600 dark:text-purple-400"
+                                                    title="AI Assist"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setAiAssistJob(job);
+                                                    }}
+                                                >
+                                                    <svg
+                                                        className="w-4 h-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                                {/* Manual Edit button - Pencil */}
+                                                <button
+                                                    className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                                    title="Edit"
+                                                    onClick={() => router.push(`/jobs/${job.id}`)}
+                                                >
+                                                    <svg
+                                                        className="w-4 h-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                                {/* Delete button */}
+                                                <button
+                                                    className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-red-600 dark:text-red-400"
+                                                    title="Delete"
+                                                    onClick={() => setDeleteId(job.id)}
+                                                >
+                                                    <svg
+                                                        className="w-4 h-4"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                    >
+                                                        <path
+                                                            strokeLinecap="round"
+                                                            strokeLinejoin="round"
+                                                            strokeWidth={2}
+                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                                        />
+                                                    </svg>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile View: Cards */}
+                    <div className="md:hidden space-y-4">
+                        {jobs.map((job) => (
+                            <div
+                                key={job.id}
+                                className="bg-[var(--background)] p-4 rounded-lg border border-[var(--border)] shadow-sm space-y-3"
+                            >
+                                <div className="flex justify-between items-start gap-2">
+                                    <div className="min-w-0">
+                                        <div className="font-semibold truncate">
                                             {job.title || (
                                                 <span className="text-[var(--muted)] italic">
                                                     No title
                                                 </span>
                                             )}
                                         </div>
-                                        {job.job_post_url && (
-                                            <a
-                                                href={job.job_post_url}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="text-xs text-[var(--primary)] hover:underline"
-                                                onClick={(e) => e.stopPropagation()}
-                                            >
-                                                View posting →
-                                            </a>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {job.company_name || (
-                                            <span className="text-[var(--muted)] italic">—</span>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span
-                                            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(job.status)}`}
-                                        >
-                                            {job.status}
-                                        </span>
-                                        {/* Missing info badges */}
-                                        {getMissingBadges(job).length > 0 && (
-                                            <div className="flex gap-1 mt-1">
-                                                {getMissingBadges(job).map((badge) => (
-                                                    <Badge key={badge} variant="warning" size="sm">
-                                                        {badge}
-                                                    </Badge>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-[var(--muted)]">
-                                        {formatRelativeTime(job.updated_at)}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex items-center justify-end gap-2">
-                                            {/* AI Assist button - Sparkles */}
-                                            <button
-                                                className="p-1.5 rounded-md hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-purple-600 dark:text-purple-400"
-                                                title="AI Assist"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setAiAssistJob(job);
-                                                }}
-                                            >
-                                                <svg
-                                                    className="w-4 h-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                                                    />
-                                                </svg>
-                                            </button>
-                                            {/* Manual Edit button - Pencil */}
-                                            <button
-                                                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                                                title="Edit"
-                                                onClick={() => router.push(`/jobs/${job.id}`)}
-                                            >
-                                                <svg
-                                                    className="w-4 h-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                                    />
-                                                </svg>
-                                            </button>
-                                            {/* Delete button */}
-                                            <button
-                                                className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-red-600 dark:text-red-400"
-                                                title="Delete"
-                                                onClick={() => setDeleteId(job.id)}
-                                            >
-                                                <svg
-                                                    className="w-4 h-4"
-                                                    fill="none"
-                                                    stroke="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path
-                                                        strokeLinecap="round"
-                                                        strokeLinejoin="round"
-                                                        strokeWidth={2}
-                                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                                    />
-                                                </svg>
-                                            </button>
+                                        <div className="text-sm text-[var(--muted)] truncate">
+                                            {job.company_name || "—"}
                                         </div>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                    </div>
+                                    <span
+                                        className={`flex-shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
+                                            job.status
+                                        )}`}
+                                    >
+                                        {job.status}
+                                    </span>
+                                </div>
+
+                                {/* Missing info badges */}
+                                {getMissingBadges(job).length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                        {getMissingBadges(job).map((badge) => (
+                                            <Badge key={badge} variant="warning" size="sm">
+                                                {badge}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="text-xs text-[var(--muted)] flex justify-between items-center">
+                                    <span>Updated {formatRelativeTime(job.updated_at)}</span>
+                                    {job.job_post_url && (
+                                        <a
+                                            href={job.job_post_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-[var(--primary)] hover:underline"
+                                            onClick={(e) => e.stopPropagation()}
+                                        >
+                                            View posting →
+                                        </a>
+                                    )}
+                                </div>
+
+                                {/* Actions Row */}
+                                <div className="pt-3 border-t border-[var(--border)] flex justify-end gap-3">
+                                    {/* AI Assist button - Sparkles */}
+                                    <button
+                                        className="p-2 rounded-md bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400"
+                                        title="AI Assist"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setAiAssistJob(job);
+                                        }}
+                                    >
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                                            />
+                                        </svg>
+                                    </button>
+                                    {/* Manual Edit button - Pencil */}
+                                    <button
+                                        className="p-2 rounded-md bg-gray-100 dark:bg-gray-800"
+                                        title="Edit"
+                                        onClick={() => router.push(`/jobs/${job.id}`)}
+                                    >
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                            />
+                                        </svg>
+                                    </button>
+                                    {/* Delete button */}
+                                    <button
+                                        className="p-2 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                                        title="Delete"
+                                        onClick={() => setDeleteId(job.id)}
+                                    >
+                                        <svg
+                                            className="w-5 h-5"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                            />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
             )}
 
             {/* Empty state */}
