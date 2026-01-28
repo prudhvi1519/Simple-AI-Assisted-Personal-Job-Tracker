@@ -50,6 +50,18 @@ export async function GET(request: NextRequest) {
             dbQuery = dbQuery.eq("status", status);
         }
 
+        // Priority filter (exact match)
+        const priority = searchParams.get("priority");
+        if (priority && isValidPriority(priority)) {
+            dbQuery = dbQuery.eq("priority", priority);
+        }
+
+        // Work Mode filter (exact match)
+        const workMode = searchParams.get("work_mode");
+        if (workMode && isValidWorkMode(workMode)) {
+            dbQuery = dbQuery.eq("work_mode", workMode);
+        }
+
         // Order by updated_at desc
         dbQuery = dbQuery.order("updated_at", { ascending: false });
 
