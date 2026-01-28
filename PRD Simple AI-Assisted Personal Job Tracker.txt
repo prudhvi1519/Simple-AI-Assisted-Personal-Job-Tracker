@@ -1,0 +1,504 @@
+PRD: Simple AI-Assisted Personal Job Tracker (Netlify + Supabase + Gemini)
+
+Because a “personal project” should not accidentally evolve into Salesforce.
+
+
+---
+
+1) Product summary
+
+A lightweight web app that lets you track job applications with minimal manual entry. You can create jobs with optional fields, upload resume/docs per job, and use a per-row AI pencil icon to extract missing details from pasted JD text or job links using Gemini. Status is mostly manual, with one simple automation: uploading a resume can auto-set status to “Applied” (only if it was “Saved” or empty).
+
+Deployment: Netlify (automated via Netlify CLI + GitHub).
+Storage: Supabase Postgres + Supabase Storage.
+Auth: Skipped for MVP (assume private usage).
+
+
+---
+
+2) Goals
+
+MVP goals
+
+Create/edit/delete job rows quickly (fields optional).
+
+Manual status management.
+
+Upload/download/delete job files (resume + docs).
+
+Auto-mark “Applied” when resume uploaded (safe rule).
+
+AI extraction per job row (pencil icon): paste link/JD → preview suggestions → apply selected changes.
+
+Search + status filter.
+
+Export jobs as CSV/JSON.
+
+One-command-ish deployment to Netlify (agent-driven via CLI).
+
+
+Success criteria
+
+Add a job row in under 10 seconds.
+
+AI extract usable output in under ~20 seconds (depends on page access).
+
+No broken file downloads.
+
+AI never invents values; missing stays empty.
+
+
+
+---
+
+3) Target user
+
+Single user: you.
+
+No multi-user, no roles, no permissions in MVP.
+
+
+
+---
+
+4) Key user flows
+
+A) Add Job (minimal input)
+
+User clicks Add Job
+
+Enters any subset of: title, company, req ID, links, recruiter email, notes, status
+
+Saves → job row appears
+
+
+B) Manual status updates
+
+User can change status anytime: Saved → Applied → Recruiter Screen → Technical → Final → Offer → Rejected → Ghosted
+
+
+C) Resume upload auto-status
+
+If user uploads a resume AND current status is Saved/empty, set status to Applied
+
+If status is anything else (Technical/Offer/etc.), do not change it
+
+
+D) Files per job
+
+Upload resume/documents
+
+List files, download, delete
+
+
+E) AI Assist per row (pencil icon)
+
+On jobs list, each row has a pencil icon
+
+Click → AI modal
+
+Paste JD text and/or provide URLs
+
+Click Extract
+
+See suggested updates with confidence + source
+
+Select fields to apply → save
+
+
+F) Search/filter + export
+
+Search jobs by text
+
+Filter by status
+
+Export to CSV/JSON from Settings
+
+
+
+---
+
+5) Scope
+
+In scope (MVP)
+
+Jobs CRUD
+
+Status manual + resume upload automation
+
+Per-job file handling (resume/doc)
+
+AI extraction + preview + apply selected
+
+Search + status filter
+
+Export CSV/JSON
+
+Netlify deploy automation via CLI
+
+
+Out of scope (for now)
+
+Web search API fallback (Google/SerpAPI)
+
+Gmail duplicate detection
+
+Resume-vs-JD matching using your resume text
+
+Browser extension/bookmarklet
+
+Auth/RLS hardening (you can add later)
+
+
+
+---
+
+6) Data model (Supabase)
+
+Table: jobs
+
+id uuid PK
+
+title text null
+
+company_name text null
+
+req_id text null
+
+job_post_url text null
+
+apply_url text null
+
+recruiter_emails text[] default {}
+
+status text default 'Saved'
+
+notes text null
+
+created_at timestamptz default now()
+
+updated_at timestamptz default now()
+
+
+Table: job_files
+
+id uuid PK
+
+job_id uuid FK → jobs(id) ON DELETE CASCADE
+
+file_type text: 'resume' | 'document'
+
+original_name text
+
+storage_path text
+
+mime_type text
+
+size_bytes int
+
+created_at timestamptz default now()
+
+
+Table: ai_runs (recommended)
+
+id uuid PK
+
+job_id uuid FK → jobs(id) ON DELETE CASCADE
+
+input_text text (truncated)
+
+extracted jsonb
+
+confidence jsonb
+
+sources jsonb
+
+warnings jsonb
+
+created_at timestamptz default now()
+
+
+Triggers
+
+Auto-update jobs.updated_at on update.
+
+
+
+---
+
+7) File storage design (Supabase Storage)
+
+Bucket: job-files
+
+Storage path convention:
+
+jobs/<jobId>/resume/<fileId>-<originalName>
+
+jobs/<jobId>/document/<fileId>-<originalName>
+
+
+Duplicate filenames allowed because fileId makes the path unique.
+
+
+---
+
+8) AI behavior (Gemini)
+
+Inputs
+
+AI Assist modal can accept:
+
+Pasted JD text (preferred)
+
+Job post URL / Apply URL (optional; backend fetches and strips HTML)
+
+Optional hints from current job: title/company/reqId
+
+
+Output requirements
+
+Gemini must return strict JSON:
+
+{
+  "title": null,
+  "companyName": null,
+  "reqId": null,
+  "jobPostUrl": null,
+  "applyUrl": null,
+  "location": null,
+  "workMode": null,
+  "skills": [],
+  "summary": null,
+  "confidence": { "title": 0.0 },
+  "sources": { "title": "pasted_text" },
+  "warnings": []
+}
+
+Rules:
+
+Unknown → null/[] (no guessing)
+
+Provide confidence per field
+
+Provide source per field: pasted_text | job_page | apply_page | inferred | user_input
+
+
+Applying results
+
+To keep DB simple:
+
+Only write directly into columns that already exist:
+
+title, company_name, req_id, job_post_url, apply_url
+
+
+Extras (location/workMode/skills/summary) are:
+
+shown to user
+
+if selected, appended to notes in a structured way
+
+
+
+
+---
+
+9) Backend/API (Next.js route handlers)
+
+Jobs
+
+GET /api/jobs?query=&status=
+
+POST /api/jobs
+
+GET /api/jobs/:id
+
+PUT /api/jobs/:id
+
+DELETE /api/jobs/:id
+
+
+Files
+
+POST /api/jobs/:id/files (multipart upload: file, fileType)
+
+If fileType=resume and job.status is Saved/empty → set status Applied
+
+
+GET /api/files/:fileId (download)
+
+DELETE /api/files/:fileId
+
+
+AI
+
+POST /api/jobs/:id/ai-extract
+
+fetch URL text if needed, call Gemini, store ai_runs
+
+
+POST /api/jobs/:id/ai-apply
+
+apply selected job column updates + optional notesAppend
+
+
+
+Export
+
+GET /api/export/jobs.json
+
+GET /api/export/jobs.csv
+
+
+
+---
+
+10) UI requirements
+
+Jobs list (/jobs)
+
+Search input
+
+Status filter
+
+Table columns:
+
+Title (fallback “Untitled”)
+
+Company (fallback “-”)
+
+Status
+
+Updated
+
+Missing info badges (small, max 2)
+
+Actions: View, Delete, AI pencil icon (every row)
+
+
+
+Job detail (/jobs/[id])
+
+Editable fields (simple form/modal)
+
+Status dropdown
+
+Notes textarea
+
+Files sections:
+
+Resumes: upload/list/download/delete
+
+Documents: upload/list/download/delete
+
+
+
+AI Assist modal (opened from row pencil)
+
+Inputs: jobPostUrl, applyUrl, pastedText
+
+“Extract with AI”
+
+Suggestions preview:
+
+checkbox per field
+
+confidence badge
+
+source label
+
+
+“Apply selected” button
+
+
+Settings (/settings)
+
+Export CSV
+
+Export JSON
+
+
+
+---
+
+11) Non-functional requirements
+
+Simple, stable, low-dependency
+
+AI never blocks core usage (job CRUD must work without AI)
+
+File uploads should handle common resume sizes (a few MB)
+
+Basic error states:
+
+URL fetch blocked → suggest pasting JD text
+
+Gemini invalid JSON → show warning + retry option
+
+
+
+
+---
+
+12) Deployment requirements (Netlify automation)
+
+The repo must support:
+
+Build: npm run build
+
+Start/dev: npm run dev
+
+
+Agent-driven deployment steps (via Netlify CLI):
+
+Push to GitHub
+
+Create/link Netlify site
+
+Set env vars on Netlify:
+
+NEXT_PUBLIC_SUPABASE_URL
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+GEMINI_API_KEY
+
+
+Deploy prod and verify:
+
+/jobs loads
+
+/api/jobs responds
+
+
+
+
+---
+
+13) Acceptance criteria checklist (MVP)
+
+[ ] Create job with all fields empty
+
+[ ] Edit status manually
+
+[ ] Upload resume → status becomes Applied only if it was Saved/empty
+
+[ ] Upload document → status unchanged
+
+[ ] Download and delete files works
+
+[ ] AI pencil exists for every row and opens modal
+
+[ ] AI extract works with pasted JD text
+
+[ ] AI apply updates only selected fields and doesn’t invent missing values
+
+[ ] Search + status filter works
+
+[ ] Export CSV/JSON downloads
+
+[ ] Netlify deployed URL works
+
+
+
+---

@@ -8,6 +8,7 @@ import Select from "@/components/ui/Select";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
 import Badge from "@/components/ui/Badge";
+import AiAssistModal from "@/components/jobs/AiAssistModal";
 import { Job, JOB_STATUSES, JobStatus } from "@/lib/supabase/client";
 import { formatRelativeTime } from "@/lib/utils/format";
 
@@ -92,6 +93,9 @@ export default function JobsPage() {
     // Delete confirmation
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const [deleteLoading, setDeleteLoading] = useState(false);
+
+    // AI Assist modal
+    const [aiAssistJob, setAiAssistJob] = useState<Job | null>(null);
 
     // Fetch jobs
     const fetchJobs = useCallback(async () => {
@@ -334,11 +338,14 @@ export default function JobsPage() {
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex items-center justify-end gap-2">
-                                            {/* AI Assist pencil icon - disabled placeholder */}
+                                            {/* AI Assist pencil icon */}
                                             <button
-                                                className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors opacity-50 cursor-not-allowed"
-                                                title="AI Assist (coming soon)"
-                                                disabled
+                                                className="p-1.5 rounded-md hover:bg-blue-100 dark:hover:bg-blue-900/30 transition-colors"
+                                                title="AI Assist"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setAiAssistJob(job);
+                                                }}
                                             >
                                                 <svg
                                                     className="w-4 h-4 text-[var(--primary)]"
@@ -591,6 +598,19 @@ export default function JobsPage() {
                     </Button>
                 </div>
             </Modal>
+
+            {/* AI Assist Modal */}
+            {aiAssistJob && (
+                <AiAssistModal
+                    isOpen={!!aiAssistJob}
+                    onClose={() => setAiAssistJob(null)}
+                    job={aiAssistJob}
+                    onApplied={() => {
+                        setAiAssistJob(null);
+                        fetchJobs();
+                    }}
+                />
+            )}
         </div>
     );
 }
