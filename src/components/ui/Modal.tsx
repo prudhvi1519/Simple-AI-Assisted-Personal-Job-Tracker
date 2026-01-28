@@ -38,10 +38,10 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
                 if (e.target === overlayRef.current) onClose();
             }}
         >
-            <div className="w-full max-w-lg bg-[var(--background)] rounded-xl shadow-2xl border border-[var(--border)] animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-full max-w-lg max-h-[calc(100vh-2rem)] flex flex-col bg-[var(--background)] rounded-xl shadow-2xl border border-[var(--border)] animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
                 {title && (
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
+                    <div className="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-[var(--border)]">
                         <h2 className="text-lg font-semibold">{title}</h2>
                         <button
                             onClick={onClose}
@@ -65,7 +65,7 @@ export default function Modal({ isOpen, onClose, title, children }: ModalProps) 
                 )}
 
                 {/* Content */}
-                <div className="p-6">{children}</div>
+                <div className="p-6 overflow-y-auto">{children}</div>
             </div>
         </div>
     );
