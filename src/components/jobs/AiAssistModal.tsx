@@ -254,6 +254,42 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
         return str || "(empty)";
     };
 
+    // Get current value for comparison
+    const getCurrentValue = (field: FieldKey): string => {
+        switch (field) {
+            case "title": return job.title || "";
+            case "companyName": return job.company_name || "";
+            case "reqId": return job.req_id || "";
+            case "jobPostUrl": return job.job_post_url || "";
+            case "applyUrl": return job.apply_url || "";
+            case "recruiterEmails":
+                return job.recruiter_emails && job.recruiter_emails.length > 0
+                    ? job.recruiter_emails.join(", ")
+                    : "";
+            default: return ""; // Notes fields don't overwrite
+        }
+    };
+
+    // Toggle all fields
+    const toggleAll = () => {
+        if (!extractionResult) return;
+
+        // If all available are selected, deselect all. Otherwise select all available.
+        const availableFields = [...DIRECT_FIELDS, ...NOTES_FIELDS].filter(field => {
+            const value = extractionResult.suggested[field];
+            const str = formatValue(field, value);
+            return str !== "(empty)";
+        });
+
+        const allSelected = availableFields.every(f => selectedFields.has(f));
+
+        if (allSelected) {
+            setSelectedFields(new Set());
+        } else {
+            setSelectedFields(new Set(availableFields));
+        }
+    };
+
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="AI Assist - Extract Job Info">
             <div className="space-y-4">
@@ -376,67 +412,87 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
                         )}
 
                         {/* Suggestions Table */}
-                        <div className="border border-[var(--border)] rounded-lg overflow-hidden">
-                            <table className="w-full text-sm">
-                                <thead className="bg-gray-50 dark:bg-gray-900">
-                                    <tr>
-                                        <th className="px-3 py-2 text-left w-8">
-                                            <span className="sr-only">Select</span>
-                                        </th>
-                                        <th className="px-3 py-2 text-left">Field</th>
-                                        <th className="px-3 py-2 text-left">Suggested Value</th>
-                                        <th className="px-3 py-2 text-center w-20">Conf.</th>
-                                        <th className="px-3 py-2 text-center w-24">Source</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-[var(--border)]">
-                                    {[...DIRECT_FIELDS, ...NOTES_FIELDS].map((field) => {
-                                        const value = extractionResult.suggested[field];
-                                        const confidence = extractionResult.confidence[field];
-                                        const source = extractionResult.sources[field];
-                                        const displayValue = formatValue(field, value);
-                                        const isEmpty = displayValue === "(empty)";
-                                        const isNotesField = NOTES_FIELDS.includes(field);
+                        <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col max-h-[60vh]">
+                            <div className="overflow-auto">
+                                <table className="w-full text-sm">
+                                    <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10">
+                                        <tr>
+                                            <th className="px-3 py-2 text-left w-8 bg-gray-50 dark:bg-gray-900 border-b border-[var(--border)]">
+                                                <input
+                                                    type="checkbox"
+                                                    onChange={toggleAll}
+                                                    // Simple check: if at least one selected, show indeterminate or checked. 
+                                                    // Ideally strict "all available" logic.
+                                                    className="rounded border-gray-300 dark:border-gray-600"
+                                                    title="Select All / None"
+                                                />
+                                            </th>
+                                            <th className="px-3 py-2 text-left bg-gray-50 dark:bg-gray-900 border-b border-[var(--border)]">Field</th>
+                                            <th className="px-3 py-2 text-left bg-gray-50 dark:bg-gray-900 border-b border-[var(--border)]">Current Value</th>
+                                            <th className="px-3 py-2 text-left bg-gray-50 dark:bg-gray-900 border-b border-[var(--border)]">Suggested Value</th>
+                                            <th className="px-3 py-2 text-center w-20 bg-gray-50 dark:bg-gray-900 border-b border-[var(--border)]">Conf.</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-[var(--border)]">
+                                        {[...DIRECT_FIELDS, ...NOTES_FIELDS].map((field) => {
+                                            const value = extractionResult.suggested[field];
+                                            const confidence = extractionResult.confidence[field];
+                                            const displayValue = formatValue(field, value);
+                                            const isEmpty = displayValue === "(empty)";
+                                            const isNotesField = NOTES_FIELDS.includes(field);
 
-                                        return (
-                                            <tr
-                                                key={field}
-                                                className={`hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isEmpty ? "opacity-50" : ""
-                                                    }`}
-                                            >
-                                                <td className="px-3 py-2">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={selectedFields.has(field)}
-                                                        onChange={() => toggleField(field)}
-                                                        disabled={isEmpty}
-                                                        className="rounded border-gray-300 dark:border-gray-600"
-                                                    />
-                                                </td>
-                                                <td className="px-3 py-2 font-medium">
-                                                    {FIELD_LABELS[field]}
-                                                    {isNotesField && (
-                                                        <span className="text-xs text-[var(--muted)] ml-1">(→notes)</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-3 py-2 max-w-xs truncate" title={displayValue}>
-                                                    {isEmpty ? (
-                                                        <span className="text-[var(--muted)] italic">(empty)</span>
-                                                    ) : (
-                                                        displayValue
-                                                    )}
-                                                </td>
-                                                <td className="px-3 py-2 text-center">
-                                                    {getConfidenceBadge(confidence)}
-                                                </td>
-                                                <td className="px-3 py-2 text-center text-xs text-[var(--muted)]">
-                                                    {source || "-"}
-                                                </td>
-                                            </tr>
-                                        );
-                                    })}
-                                </tbody>
-                            </table>
+                                            // Comparison Logic
+                                            const currentVal = getCurrentValue(field);
+                                            // Ideally we compare normalized strings, but raw compare is okay for now
+                                            // For direct fields, check if different. For notes, always "Appends"
+
+                                            let currentDisplay = currentVal || <span className="text-[var(--muted)] italic text-xs">(empty)</span>;
+                                            if (isNotesField) currentDisplay = <span className="text-[var(--muted)] italic text-xs">(appends to notes)</span>;
+
+                                            // Highlight if suggested is present AND different from current (for direct fields)
+                                            // or just present (for notes fields)
+                                            const isNew = !isEmpty && (isNotesField || (currentVal !== displayValue && value !== currentVal)); // loose check
+
+                                            return (
+                                                <tr
+                                                    key={field}
+                                                    className={`hover:bg-gray-50 dark:hover:bg-gray-900/50 ${isEmpty ? "opacity-50" : ""
+                                                        }`}
+                                                >
+                                                    <td className="px-3 py-2">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedFields.has(field)}
+                                                            onChange={() => toggleField(field)}
+                                                            disabled={isEmpty}
+                                                            className="rounded border-gray-300 dark:border-gray-600"
+                                                        />
+                                                    </td>
+                                                    <td className="px-3 py-2 font-medium">
+                                                        {FIELD_LABELS[field]}
+                                                        {/* Source could be small here if needed, but omitted for space */}
+                                                    </td>
+                                                    <td className="px-3 py-2 max-w-[150px] truncate text-[var(--muted)]" title={typeof currentVal === 'string' ? currentVal : ''}>
+                                                        {currentDisplay}
+                                                    </td>
+                                                    <td className="px-3 py-2 max-w-[200px]" title={displayValue}>
+                                                        {isEmpty ? (
+                                                            <span className="text-[var(--muted)] italic text-xs">(no suggestion)</span>
+                                                        ) : (
+                                                            <span className={isNew ? "text-green-600 dark:text-green-400 font-medium" : ""}>
+                                                                {displayValue}
+                                                            </span>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3 py-2 text-center">
+                                                        {getConfidenceBadge(confidence)}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         <div className="flex justify-between items-center pt-4">
