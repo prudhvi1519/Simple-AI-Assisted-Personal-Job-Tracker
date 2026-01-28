@@ -9,7 +9,7 @@ import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
 import Badge from "@/components/ui/Badge";
 import AiAssistModal from "@/components/jobs/AiAssistModal";
-import { Job, JOB_STATUSES, JobStatus } from "@/lib/supabase/client";
+import { Job, JOB_STATUSES, JobStatus, WORK_MODES, PRIORITIES, WorkMode, Priority } from "@/lib/supabase/client";
 import { formatRelativeTime } from "@/lib/utils/format";
 
 // Status options for filter dropdown
@@ -62,6 +62,49 @@ function getMissingBadges(job: Job): string[] {
     return missing.slice(0, 2); // Max 2 badges
 }
 
+// Parse comma-separated skills into array (trim, dedupe, limit)
+function parseSkills(input: string, maxCount: number = 10): string[] {
+    if (!input.trim()) return [];
+    const skills = input
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    const uniqueSkills = [...new Set(skills)];
+    return uniqueSkills.slice(0, maxCount);
+}
+
+// Dropdown options for new fields
+const WORK_MODE_OPTIONS = [
+    { value: "", label: "Select..." },
+    ...WORK_MODES.map((m) => ({ value: m, label: m })),
+];
+
+const PRIORITY_OPTIONS = [
+    { value: "", label: "Select..." },
+    ...PRIORITIES.map((p) => ({ value: p, label: p })),
+];
+
+// Default form state
+const DEFAULT_FORM_DATA = {
+    title: "",
+    company_name: "",
+    req_id: "",
+    job_post_url: "",
+    apply_url: "",
+    recruiter_email: "",
+    recruiter_name: "",
+    notes: "",
+    status: "Saved" as JobStatus,
+    source: "",
+    priority: "" as Priority | "",
+    location: "",
+    work_mode: "" as WorkMode | "",
+    compensation_text: "",
+    next_followup_at: "",
+    primary_skills: "",
+    secondary_skills: "",
+};
+
 export default function JobsPage() {
     const router = useRouter();
 
@@ -79,16 +122,8 @@ export default function JobsPage() {
     const [showAddModal, setShowAddModal] = useState(false);
     const [formLoading, setFormLoading] = useState(false);
     const [formError, setFormError] = useState<string | null>(null);
-    const [formData, setFormData] = useState({
-        title: "",
-        company_name: "",
-        req_id: "",
-        job_post_url: "",
-        apply_url: "",
-        recruiter_email: "",
-        notes: "",
-        status: "Saved" as JobStatus,
-    });
+    const [formData, setFormData] = useState({ ...DEFAULT_FORM_DATA });
+    const [showMoreDetails, setShowMoreDetails] = useState(false);
 
     // Resume upload state (optional)
     const [resumeFile, setResumeFile] = useState<File | null>(null);
@@ -162,8 +197,18 @@ export default function JobsPage() {
                 recruiter_emails: formData.recruiter_email
                     ? [formData.recruiter_email]
                     : [],
+                recruiter_name: formData.recruiter_name || undefined,
                 notes: formData.notes || undefined,
                 status: formData.status,
+                // New fields
+                source: formData.source || undefined,
+                priority: formData.priority || undefined,
+                location: formData.location || undefined,
+                work_mode: formData.work_mode || undefined,
+                compensation_text: formData.compensation_text || undefined,
+                next_followup_at: formData.next_followup_at || undefined,
+                primary_skills: parseSkills(formData.primary_skills, 10),
+                secondary_skills: parseSkills(formData.secondary_skills, 20),
             };
 
             // Step 1: Create job
@@ -215,16 +260,8 @@ export default function JobsPage() {
             }
 
             // Reset form and close modal
-            setFormData({
-                title: "",
-                company_name: "",
-                req_id: "",
-                job_post_url: "",
-                apply_url: "",
-                recruiter_email: "",
-                notes: "",
-                status: "Saved",
-            });
+            setFormData({ ...DEFAULT_FORM_DATA });
+            setShowMoreDetails(false);
             setResumeFile(null);
             setCreatedJobId(null);
             if (resumeInputRef.current) {
@@ -266,16 +303,8 @@ export default function JobsPage() {
 
             // Success - close modal and refresh
             setTimeout(() => {
-                setFormData({
-                    title: "",
-                    company_name: "",
-                    req_id: "",
-                    job_post_url: "",
-                    apply_url: "",
-                    recruiter_email: "",
-                    notes: "",
-                    status: "Saved",
-                });
+                setFormData({ ...DEFAULT_FORM_DATA });
+                setShowMoreDetails(false);
                 setResumeFile(null);
                 setCreatedJobId(null);
                 setResumeUploadSuccess(false);
@@ -558,6 +587,35 @@ export default function JobsPage() {
                                     </div>
                                 )}
 
+                                {/* Skills chips (top 2 primary) */}
+                                {job.primary_skills && job.primary_skills.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                        {job.primary_skills.slice(0, 2).map((skill) => (
+                                            <span
+                                                key={skill}
+                                                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                            >
+                                                {skill}
+                                            </span>
+                                        ))}
+                                        {job.primary_skills.length > 2 && (
+                                            <span className="text-xs text-[var(--muted)]">
+                                                +{job.primary_skills.length - 2}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Next follow-up */}
+                                {job.next_followup_at && (
+                                    <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Follow-up: {new Date(job.next_followup_at).toLocaleDateString()}
+                                    </div>
+                                )}
+
                                 <div className="text-xs text-[var(--muted)] flex justify-between items-center">
                                     <span>Updated {formatRelativeTime(job.updated_at)}</span>
                                     {job.job_post_url && (
@@ -787,6 +845,137 @@ export default function JobsPage() {
                                 setFormData((d) => ({ ...d, notes: e.target.value }))
                             }
                         />
+                    </div>
+
+                    {/* More Details Accordion */}
+                    <div className="border-t border-[var(--border)] pt-2">
+                        <button
+                            type="button"
+                            className="flex items-center justify-between w-full text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                            onClick={() => setShowMoreDetails(!showMoreDetails)}
+                        >
+                            <span>More details (optional)</span>
+                            <svg
+                                className={`w-4 h-4 transition-transform ${showMoreDetails ? "rotate-180" : ""}`}
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {showMoreDetails && (
+                            <div className="mt-3 space-y-3">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Recruiter Name</label>
+                                        <Input
+                                            placeholder="John Doe"
+                                            value={formData.recruiter_name}
+                                            onChange={(e) =>
+                                                setFormData((d) => ({ ...d, recruiter_name: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Source</label>
+                                        <Input
+                                            placeholder="LinkedIn, Referral..."
+                                            value={formData.source}
+                                            onChange={(e) =>
+                                                setFormData((d) => ({ ...d, source: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Priority</label>
+                                        <Select
+                                            options={PRIORITY_OPTIONS}
+                                            value={formData.priority}
+                                            onChange={(e) =>
+                                                setFormData((d) => ({ ...d, priority: e.target.value as Priority | "" }))
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Work Mode</label>
+                                        <Select
+                                            options={WORK_MODE_OPTIONS}
+                                            value={formData.work_mode}
+                                            onChange={(e) =>
+                                                setFormData((d) => ({ ...d, work_mode: e.target.value as WorkMode | "" }))
+                                            }
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Location</label>
+                                        <Input
+                                            placeholder="San Francisco, CA"
+                                            value={formData.location}
+                                            onChange={(e) =>
+                                                setFormData((d) => ({ ...d, location: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Compensation</label>
+                                        <Input
+                                            placeholder="$150k-180k"
+                                            value={formData.compensation_text}
+                                            onChange={(e) =>
+                                                setFormData((d) => ({ ...d, compensation_text: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">Next Follow-up</label>
+                                    <Input
+                                        type="datetime-local"
+                                        value={formData.next_followup_at}
+                                        onChange={(e) =>
+                                            setFormData((d) => ({ ...d, next_followup_at: e.target.value }))
+                                        }
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">
+                                        Primary Skills{" "}
+                                        <span className="font-normal text-[var(--muted)]">(comma-separated, max 10)</span>
+                                    </label>
+                                    <Input
+                                        placeholder="React, TypeScript, Node.js"
+                                        value={formData.primary_skills}
+                                        onChange={(e) =>
+                                            setFormData((d) => ({ ...d, primary_skills: e.target.value }))
+                                        }
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">
+                                        Secondary Skills{" "}
+                                        <span className="font-normal text-[var(--muted)]">(nice-to-have, max 20)</span>
+                                    </label>
+                                    <Input
+                                        placeholder="GraphQL, Docker, AWS"
+                                        value={formData.secondary_skills}
+                                        onChange={(e) =>
+                                            setFormData((d) => ({ ...d, secondary_skills: e.target.value }))
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Resume (optional) */}

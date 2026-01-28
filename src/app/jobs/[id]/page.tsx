@@ -7,7 +7,7 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Modal from "@/components/ui/Modal";
 import Spinner from "@/components/ui/Spinner";
-import { JobDetailResponse, JobFile, JOB_STATUSES, JobStatus, FileType } from "@/lib/supabase/client";
+import { JobDetailResponse, JobFile, JOB_STATUSES, JobStatus, FileType, WORK_MODES, PRIORITIES, WorkMode, Priority } from "@/lib/supabase/client";
 import { formatDate, formatRelativeTime, formatFileSize } from "@/lib/utils/format";
 
 interface JobDetailPageProps {
@@ -16,6 +16,18 @@ interface JobDetailPageProps {
 
 // Status options for dropdown
 const STATUS_OPTIONS = JOB_STATUSES.map((s) => ({ value: s, label: s }));
+
+// Work mode options
+const WORK_MODE_OPTIONS = [
+    { value: "", label: "Not set" },
+    ...WORK_MODES.map((m) => ({ value: m, label: m })),
+];
+
+// Priority options
+const PRIORITY_OPTIONS = [
+    { value: "", label: "Not set" },
+    ...PRIORITIES.map((p) => ({ value: p, label: p })),
+];
 
 export default function JobDetailPage({ params }: JobDetailPageProps) {
     const router = useRouter();
@@ -35,8 +47,18 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
         job_post_url: "",
         apply_url: "",
         recruiter_emails: "",
+        recruiter_name: "",
         notes: "",
         status: "Saved" as JobStatus,
+        // New fields
+        source: "",
+        priority: "" as Priority | "",
+        location: "",
+        work_mode: "" as WorkMode | "",
+        compensation_text: "",
+        next_followup_at: "",
+        primary_skills: "",
+        secondary_skills: "",
     });
     const [saving, setSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
@@ -88,8 +110,18 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                 job_post_url: data.job_post_url || "",
                 apply_url: data.apply_url || "",
                 recruiter_emails: data.recruiter_emails.join(", "),
+                recruiter_name: data.recruiter_name || "",
                 notes: data.notes || "",
                 status: data.status,
+                // New fields
+                source: data.source || "",
+                priority: (data.priority || "") as Priority | "",
+                location: data.location || "",
+                work_mode: (data.work_mode || "") as WorkMode | "",
+                compensation_text: data.compensation_text || "",
+                next_followup_at: data.next_followup_at ? data.next_followup_at.slice(0, 16) : "",
+                primary_skills: data.primary_skills?.join(", ") || "",
+                secondary_skills: data.secondary_skills?.join(", ") || "",
             });
             setHasChanges(false);
         } catch (err) {
@@ -132,8 +164,18 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     job_post_url: formData.job_post_url || null,
                     apply_url: formData.apply_url || null,
                     recruiter_emails: emails,
+                    recruiter_name: formData.recruiter_name || null,
                     notes: formData.notes || null,
                     status: formData.status,
+                    // New fields
+                    source: formData.source || null,
+                    priority: formData.priority || null,
+                    location: formData.location || null,
+                    work_mode: formData.work_mode || null,
+                    compensation_text: formData.compensation_text || null,
+                    next_followup_at: formData.next_followup_at || null,
+                    primary_skills: formData.primary_skills.split(",").map(s => s.trim()).filter(s => s),
+                    secondary_skills: formData.secondary_skills.split(",").map(s => s.trim()).filter(s => s),
                 }),
             });
 
@@ -409,6 +451,130 @@ export default function JobDetailPage({ params }: JobDetailPageProps) {
                     >
                         Save Changes
                     </Button>
+                </div>
+            </div>
+
+            {/* Details Section */}
+            <div className="rounded-lg border border-[var(--border)] p-6 space-y-4">
+                <h2 className="text-lg font-medium mb-4">Details</h2>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Recruiter Name</label>
+                        <Input
+                            placeholder="John Doe"
+                            value={formData.recruiter_name}
+                            onChange={(e) => handleChange("recruiter_name", e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Source</label>
+                        <Input
+                            placeholder="LinkedIn, Referral..."
+                            value={formData.source}
+                            onChange={(e) => handleChange("source", e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Priority</label>
+                        <Select
+                            options={PRIORITY_OPTIONS}
+                            value={formData.priority}
+                            onChange={(e) => handleChange("priority", e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Work Mode</label>
+                        <Select
+                            options={WORK_MODE_OPTIONS}
+                            value={formData.work_mode}
+                            onChange={(e) => handleChange("work_mode", e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Location</label>
+                        <Input
+                            placeholder="San Francisco, CA"
+                            value={formData.location}
+                            onChange={(e) => handleChange("location", e.target.value)}
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium mb-1">Compensation</label>
+                        <Input
+                            placeholder="$150k-180k"
+                            value={formData.compensation_text}
+                            onChange={(e) => handleChange("compensation_text", e.target.value)}
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium mb-1">Next Follow-up</label>
+                    <Input
+                        type="datetime-local"
+                        value={formData.next_followup_at}
+                        onChange={(e) => handleChange("next_followup_at", e.target.value)}
+                    />
+                </div>
+            </div>
+
+            {/* Skills Section */}
+            <div className="rounded-lg border border-[var(--border)] p-6 space-y-4">
+                <h2 className="text-lg font-medium mb-4">Skills</h2>
+
+                <div>
+                    <label className="block text-sm font-medium mb-1">
+                        Primary Skills{" "}
+                        <span className="font-normal text-[var(--muted)]">(required, comma-separated)</span>
+                    </label>
+                    <Input
+                        placeholder="React, TypeScript, Node.js"
+                        value={formData.primary_skills}
+                        onChange={(e) => handleChange("primary_skills", e.target.value)}
+                    />
+                    {job.primary_skills && job.primary_skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                            {job.primary_skills.map((skill) => (
+                                <span
+                                    key={skill}
+                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                >
+                                    {skill}
+                                </span>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                <div>
+                    <label className="block text-sm font-medium mb-1">
+                        Secondary Skills{" "}
+                        <span className="font-normal text-[var(--muted)]">(nice-to-have, comma-separated)</span>
+                    </label>
+                    <Input
+                        placeholder="GraphQL, Docker, AWS"
+                        value={formData.secondary_skills}
+                        onChange={(e) => handleChange("secondary_skills", e.target.value)}
+                    />
+                    {job.secondary_skills && job.secondary_skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                            {job.secondary_skills.map((skill) => (
+                                <span
+                                    key={skill}
+                                    className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
+                                >
+                                    {skill}
+                                </span>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
