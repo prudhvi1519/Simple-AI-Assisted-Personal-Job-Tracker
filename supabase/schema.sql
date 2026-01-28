@@ -24,6 +24,21 @@ create table jobs (
   
   -- Contact info (array of emails, duplicates allowed)
   recruiter_emails text[] not null default '{}',
+  recruiter_name text null,
+  
+  -- Skills (primary = required, secondary = nice-to-have)
+  primary_skills text[] not null default '{}',
+  secondary_skills text[] not null default '{}',
+  
+  -- Location & Work Mode
+  location text null,
+  work_mode text null
+    constraint jobs_work_mode_check check (
+      work_mode is null or work_mode in ('Remote', 'Hybrid', 'Onsite', 'Unknown')
+    ),
+  
+  -- Compensation (free text, avoids currency/min/max complexity)
+  compensation_text text null,
   
   -- Status tracking
   status text not null default 'Saved'
@@ -39,6 +54,16 @@ create table jobs (
         'Ghosted'
       )
     ),
+  
+  -- Priority & Source
+  priority text null
+    constraint jobs_priority_check check (
+      priority is null or priority in ('Low', 'Medium', 'High')
+    ),
+  source text null,
+  
+  -- Follow-up tracking
+  next_followup_at timestamptz null,
   
   -- Notes (free text)
   notes text null,
