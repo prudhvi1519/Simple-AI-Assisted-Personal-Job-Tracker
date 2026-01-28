@@ -102,6 +102,13 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
 
     // Handle extraction
     const handleExtract = async () => {
+        // Validate: at least one of pastedText, jobPostUrl, or applyUrl must be provided
+        const hasInput = pastedText.trim() || jobPostUrl.trim() || applyUrl.trim();
+        if (!hasInput) {
+            setExtractError("Add JD text or a URL to extract from.");
+            return;
+        }
+
         setExtracting(true);
         setExtractError(null);
         setExtractionResult(null);
@@ -363,7 +370,7 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
                         <div>
                             <label className="block text-xs font-medium mb-1">
                                 Paste Job Description
-                                <span className="font-normal text-[var(--muted)]"> (recommended)</span>
+                                <span className="font-normal text-[var(--muted)]"> (optional)</span>
                             </label>
                             <textarea
                                 className="w-full h-40 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent resize-none"
