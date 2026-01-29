@@ -11,8 +11,8 @@ import {
     getEmptyResult,
 } from "./prompts";
 
-// Use configured model or default to gemini-1.5-flash (Free Tier standard)
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash";
+// Use configured model or default to gemini-2.5-flash-lite (Free Tier preferred)
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 
 interface GeminiResponse {
