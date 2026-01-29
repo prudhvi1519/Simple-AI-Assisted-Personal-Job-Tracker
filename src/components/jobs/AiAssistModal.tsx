@@ -88,6 +88,36 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
     const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
     const [extractError, setExtractError] = useState<string | null>(null);
 
+    // 429 Rate Limit State
+    const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
+    const [secondsRemaining, setSecondsRemaining] = useState(0);
+
+    // Tabs state
+    const [inputMode, setInputMode] = useState<"paste" | "url">("paste");
+
+    // Cooldown Timer Effect
+    useEffect(() => {
+        if (!cooldownUntil) {
+            setSecondsRemaining(0);
+            return;
+        }
+
+        const tick = () => {
+            const now = Date.now();
+            const remain = Math.ceil((cooldownUntil - now) / 1000);
+            if (remain <= 0) {
+                setCooldownUntil(null);
+                setSecondsRemaining(0);
+            } else {
+                setSecondsRemaining(remain);
+            }
+        };
+
+        tick(); // immediate
+        const interval = setInterval(tick, 1000);
+        return () => clearInterval(interval);
+    }, [cooldownUntil]);
+
     // Selection state
     const [selectedFields, setSelectedFields] = useState<Set<FieldKey>>(new Set());
 
@@ -112,10 +142,21 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
 
     // Handle extraction
     const handleExtract = async () => {
+        if (extracting || cooldownUntil) return;
+
+        // Debounce / Cooldown check
+        if (Date.now() < (cooldownUntil || 0)) return;
+
         // Validate: at least one of pastedText, jobPostUrl, or applyUrl must be provided
-        const hasInput = pastedText.trim() || jobPostUrl.trim() || applyUrl.trim();
+        // Based on active tab
+        const hasInput = inputMode === "paste"
+            ? pastedText.trim().length > 0
+            : (jobPostUrl.trim().length > 0 || applyUrl.trim().length > 0);
+
         if (!hasInput) {
-            setExtractError("Add JD text or a URL to extract from.");
+            setExtractError(inputMode === "paste"
+                ? "Please paste the job description text."
+                : "Please enter a Job Post URL or Apply URL.");
             return;
         }
 
@@ -140,6 +181,14 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
 
             if (!res.ok) {
                 const err = await res.json();
+
+                // Handle 429
+                if (res.status === 429 && err.error?.type === "RATE_LIMIT") {
+                    const retrySeconds = err.error.retryAfterSeconds || 15;
+                    setCooldownUntil(Date.now() + (retrySeconds * 1000));
+                    throw new Error(err.error.message || "Rate limit reached. Please wait.");
+                }
+
                 throw new Error(err.error || "Extraction failed");
             }
 
@@ -322,28 +371,66 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
                             Provide a job description or URL to extract information automatically.
                         </p>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-xs font-medium mb-1">Job Post URL</label>
-                                <Input
-                                    type="url"
-                                    placeholder="https://..."
-                                    value={jobPostUrl}
-                                    onChange={(e) => setJobPostUrl(e.target.value)}
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-medium mb-1">Apply URL</label>
-                                <Input
-                                    type="url"
-                                    placeholder="https://..."
-                                    value={applyUrl}
-                                    onChange={(e) => setApplyUrl(e.target.value)}
-                                />
-                            </div>
+                        {/* Tab Navigation */}
+                        <div className="flex border-b border-[var(--border)] mb-4">
+                            <button
+                                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${inputMode === "paste"
+                                        ? "border-[var(--primary)] text-[var(--foreground)]"
+                                        : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+                                    }`}
+                                onClick={() => setInputMode("paste")}
+                            >
+                                Paste Text
+                            </button>
+                            <button
+                                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${inputMode === "url"
+                                        ? "border-[var(--primary)] text-[var(--foreground)]"
+                                        : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+                                    }`}
+                                onClick={() => setInputMode("url")}
+                            >
+                                Fetch from URL
+                            </button>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
+                        {/* Input Fields */}
+                        {inputMode === "paste" ? (
+                            <div>
+                                <label className="block text-xs font-medium mb-1">
+                                    Paste Job Description
+                                </label>
+                                <textarea
+                                    className="w-full h-40 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent resize-none"
+                                    placeholder="Paste the full job description here..."
+                                    value={pastedText}
+                                    onChange={(e) => setPastedText(e.target.value)}
+                                />
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-xs font-medium mb-1">Job Post URL</label>
+                                    <Input
+                                        type="url"
+                                        placeholder="https://..."
+                                        value={jobPostUrl}
+                                        onChange={(e) => setJobPostUrl(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-medium mb-1">Apply URL</label>
+                                    <Input
+                                        type="url"
+                                        placeholder="https://..."
+                                        value={applyUrl}
+                                        onChange={(e) => setApplyUrl(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Hints (Always visible or conditional? Keeping visible for now as common fields) */}
+                        <div className="grid grid-cols-2 gap-3 pt-2">
                             <div>
                                 <label className="block text-xs font-medium mb-1">Title (hint)</label>
                                 <Input
@@ -382,19 +469,6 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-medium mb-1">
-                                Paste Job Description
-                                <span className="font-normal text-[var(--muted)]"> (optional)</span>
-                            </label>
-                            <textarea
-                                className="w-full h-40 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent resize-none"
-                                placeholder="Paste the full job description here..."
-                                value={pastedText}
-                                onChange={(e) => setPastedText(e.target.value)}
-                            />
-                        </div>
-
                         {extractError && (
                             <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 text-sm">
                                 {extractError}
@@ -402,11 +476,16 @@ export default function AiAssistModal({ isOpen, onClose, job, onApplied }: AiAss
                         )}
 
                         <div className="flex justify-end gap-3 pt-4">
-                            <Button variant="secondary" onClick={onClose}>
+                            <Button variant="secondary" onClick={onClose} disabled={!!cooldownUntil}>
                                 Cancel
                             </Button>
-                            <Button onClick={handleExtract} isLoading={extracting}>
-                                Extract with AI
+                            <Button
+                                onClick={handleExtract}
+                                isLoading={extracting}
+                                disabled={!!cooldownUntil}
+                                className={cooldownUntil ? "opacity-50 cursor-not-allowed" : ""}
+                            >
+                                {cooldownUntil ? `Retry in ${secondsRemaining}s` : "Extract with AI"}
                             </Button>
                         </div>
                     </>
