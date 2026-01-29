@@ -206,6 +206,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             confidence: extractionResult.confidence,
             sources: extractionResult.sources,
             warnings: extractionResult.warnings,
+        }, {
+            headers: {
+                "Cache-Control": "no-store, max-age=0",
+            },
         });
     } catch (err) {
         console.error("Error in AI extract:", err);
