@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         if (fetchError) {
             console.error("Login DB error:", fetchError);
             return NextResponse.json(
-                { ok: false, error: "Internal authentication error" },
+                { ok: false, error: `DB Error: ${fetchError.message} (${fetchError.code})` },
                 { status: 500 }
             );
         }
