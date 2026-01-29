@@ -6,10 +6,12 @@ Track job applications + files + AI extraction on a lightweight stack.
 [![Demo](https://img.shields.io/badge/Demo-Live-blue)](https://simple-job-tracker-ai.netlify.app)
 
 ## 🔗 Live Demo & Repo
+
 - **Production URL**: [https://simple-job-tracker-ai.netlify.app](https://simple-job-tracker-ai.netlify.app)
 - **Repository**: [https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker](https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker)
 
 ## ⚡ At a Glance
+
 - **Smart Tracking**: Job CRUD with advanced optional fields (Priority, Work Mode, Compensation).
 - **Status Workflow**: Custom statuses with auto-bump from "Saved" to "Applied" on upload.
 - **File Management**: Upload Resumes and Descriptions securely to Supabase Storage.
@@ -20,13 +22,14 @@ Track job applications + files + AI extraction on a lightweight stack.
 - **Mobile Optimized**: Responsive Card layouts and Drawer sidebars.
 
 ## 📑 Table of Contents
+
 - [Simple AI-Assisted Personal Job Tracker](#simple-ai-assisted-personal-job-tracker)
   - [🔗 Live Demo \& Repo](#-live-demo--repo)
   - [⚡ At a Glance](#-at-a-glance)
   - [📑 Table of Contents](#-table-of-contents)
+  - [📦 Implementation Status (Summary)](#-implementation-status-summary)
   - [📷 Screenshots](#-screenshots)
   - [✨ Features](#-features)
-  - [📦 Implementation Status](#-implementation-status)
   - [🛠️ Tech Stack](#️-tech-stack)
   - [🧱 Architecture](#-architecture)
   - [📦 Data Model](#-data-model)
@@ -42,8 +45,31 @@ Track job applications + files + AI extraction on a lightweight stack.
   - [🧯 Troubleshooting](#-troubleshooting)
   - [📚 Documentation Index](#-documentation-index)
 
+## 📦 Implementation Status (Summary)
+
+**Current state:** ✅ Feature-complete MVP + mobile-ready + production verified.
+
+**What’s implemented** (short bullets)
+- Jobs CRUD + optional advanced fields (priority, work_mode, skills, follow-up, compensation, recruiter info, source)
+- Files: resume/docs upload/download/delete (Supabase Storage)
+- Status automation: resume upload bumps Saved→Applied only
+- AI Assist: extract (JD text/URLs), diff preview, selective apply, strict “no guessing”
+- Search + filters (status/priority/work_mode)
+- Exports: CSV/JSON/manifest backup
+- Guardrails: delete confirmations + health endpoints (env/storage/schema)
+- Mobile UX: mobile cards + sidebar drawer
+
+**Verification highlights**
+- Prod health checks: `/api/health/env`, `/api/health/storage`, `/api/health/schema` all ok
+- Jobs page loading: spinner-forever bug fixed
+
+**Link to Full Pack**
+📄 Full proof / regression logs / prompt history: [STATUS_PACK.md](./STATUS_PACK.md)
+
 ## 📷 Screenshots
+
 *Screenshots to be added.*
+
 <details>
 <summary>Contribution Instructions</summary>
 Place screenshots in `docs/screens/` and reference them here.
@@ -52,31 +78,34 @@ Place screenshots in `docs/screens/` and reference them here.
 ## ✨ Features
 
 ### A) Jobs & Status
+
 - **Rich Data**: Track more than just titles. Store Recruiter info, compensation ranges, follow-up dates, and source.
 - **Visuals**: Priority Pills (High/Medium/Low) and Status Badges.
 
 ### B) Files
+
 - **Resume Hosting**: PDF/DOCX support.
 - **Context Awareness**: Files are strictly linked to `job_id`.
 
 ### C) AI Assist
+
 - **Gemini Pro Integration**: Analyzing job descriptions with high accuracy.
 - **Safety First**: "Diff View" ensures no AI hallucination overwrites your data without approval.
 
 ### D) Exports & Backup
+
 - **CSV**: for spreadsheet analysis.
 - **Manifest**: Deep JSON export of Database + File metadata.
 
 ### E) Mobile UX
+
 - **Card Layout**: Specialized view for small screens.
 - **Drawers**: Smooth slide-overs for adding jobs and viewing details.
 
 ### F) Health & Guardrails
+
 - **Schema Validation**: Endpoints to warn if DB migrations are missing.
 - **Environment Checks**: Boot-time verification of API keys.
-
-## 📦 Implementation Status
-For a detailed log of implemented features and verification proof, please refer to the **[Implementation Status Pack](./STATUS_PACK.md)**.
 
 ## 🛠️ Tech Stack
 
@@ -115,7 +144,7 @@ graph TD
 
 | Category | Method | Endpoint | Description |
 |----------|--------|----------|-------------|
-| **Jobs** | GET | `/api/jobs` | List jobs (supports ?status=, ?priority=) |
+| **Jobs** | GET | `/api/jobs` | List jobs (supports `?query=&status=&priority=&work_mode=`) |
 | **Jobs** | POST | `/api/jobs` | Create new job |
 | **Jobs** | GET | `/api/jobs/:id` | Get job details |
 | **Jobs** | PUT | `/api/jobs/:id` | Update job |
@@ -161,7 +190,7 @@ GEMINI_API_KEY=AIzaSy...
 ## 🗄️ Supabase Setup
 
 1. **Create Project**: [database.new](https://database.new)
-2. **Create Bucket**: `job-files` (Public or Signed URLs).
+2. **Create Bucket**: `job-files` (Public or signed URLs depending on preference; MVP assumes private usage).
 3. **Apply Migrations**:
    Run `supabase/migrations/20260128170000_jobs_fields_upgrade.sql` in SQL Editor.
 4. **Reload Schema**:
@@ -170,6 +199,7 @@ GEMINI_API_KEY=AIzaSy...
    ```
 
 ## 📁 Storage Paths
+
 Files are stored with the following convention:
 - **Resumes**: `jobs/<jobId>/resume/<fileId>-<originalName>`
 - **Docs**: `jobs/<jobId>/document/<fileId>-<originalName>`
@@ -199,7 +229,7 @@ We enforce a Strict JSON response from Gemini, matching our PRD:
 - **Validation**: Enums (Remote/Hybrid, Priority) are strictly validated.
 - **Fail-safe**: URL fetch failures fall back to user-pasted text.
 - **Selective Apply**: Only fields selected by the user are written to the database.
-- **Mapping**: `location`/`workMode`/`skills` map to structured structured columns; `summary` appends to notes.
+- **Mapping**: `location`/`workMode`/`skills` map to structured columns; `summary` appends to notes.
 
 ## 📤 Export & Backup
 
@@ -208,6 +238,7 @@ We enforce a Strict JSON response from Gemini, matching our PRD:
 - **Manifest**: `/api/export/manifest.json` (Primary Backup)
 
 **Download Backup:**
+
 ```powershell
 Invoke-RestMethod -Uri "http://localhost:3000/api/export/manifest.json" -OutFile "backup.json"
 ```
@@ -237,17 +268,20 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/export/manifest.json" -OutFile
 Using `curl` in PowerShell often invokes `Invoke-WebRequest` which corrupts JSON payloads.
 
 **Correct Way (Invoke-RestMethod):**
+
 ```powershell
 $body = @{ title = "Job" } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri "url" -Body $body -ContentType "application/json"
 ```
 
 **If using curl.exe:**
+
 ```powershell
 curl.exe --data-binary "@body.json" -H "Content-Type: application/json" "url"
 ```
 
 ## 📚 Documentation Index
+
 - [STATUS_PACK.md](./STATUS_PACK.md) - Feature implementation status.
 - [Database Schema](./supabase/schema.sql)
 - [Migrations](./supabase/migrations/)
