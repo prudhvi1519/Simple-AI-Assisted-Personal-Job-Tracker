@@ -75,8 +75,39 @@ export async function GET(request: NextRequest) {
             );
         }
 
+        // Fetch resume availability for these jobs (avoid N+1)
+        const jobs = (data as Job[]) || [];
+        const jobIds = jobs.map((j) => j.id);
+
+        // Map job_id -> resume_file_id
+        const resumeMap = new Map<string, string>();
+
+        if (jobIds.length > 0) {
+            const { data: files } = await supabase
+                .from("job_files")
+                .select("job_id, id")
+                .in("job_id", jobIds)
+                .eq("file_type", "resume");
+
+            if (files) {
+                files.forEach((f) => {
+                    // Just take the first one found if multiple (usually 1)
+                    if (!resumeMap.has(f.job_id)) {
+                        resumeMap.set(f.job_id, f.id);
+                    }
+                });
+            }
+        }
+
+        // Attach to items
+        const enrichedItems = jobs.map(job => ({
+            ...job,
+            hasResume: resumeMap.has(job.id),
+            resumeFileId: resumeMap.get(job.id) || null
+        }));
+
         const response: JobsListResponse = {
-            items: (data as Job[]) || [],
+            items: enrichedItems,
             total: count || 0,
         };
 
