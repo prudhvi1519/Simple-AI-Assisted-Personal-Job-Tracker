@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { extractWithGemini, GeminiRateLimitError } from "@/lib/ai/gemini";
 import { ExtractionHints, TextSource, getEmptyResult } from "@/lib/ai/prompts";
 
@@ -13,6 +14,10 @@ interface ExtractRequestBody {
 
 // POST /api/ai/job-extract - Extract job info from text without requiring existing job
 export async function POST(request: NextRequest) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     // Check env vars first
     try {
         requireServerEnv(ENV_KEYS.GEMINI);

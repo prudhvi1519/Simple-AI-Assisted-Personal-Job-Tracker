@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { Job } from "@/lib/supabase/client";
 
 // Force dynamic - needs env vars at runtime
@@ -24,7 +25,11 @@ function escapeCsvField(field: unknown): string {
     return stringValue;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         requireServerEnv(ENV_KEYS.SUPABASE);
         const supabase = getServerSupabase();
