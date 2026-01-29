@@ -80,6 +80,15 @@ export default function Topbar() {
                     </svg>
                 </div>
 
+                <div className="text-sm font-medium text-gray-900 border-r border-gray-300 pr-4 mr-4">
+                    Admin User
+                </div>
+                <a
+                    href="/settings"
+                    className="text-sm font-medium text-gray-500 hover:text-gray-900 mr-4 transition-colors"
+                >
+                    Settings
+                </a>
                 {/* Logout button */}
                 <button
                     onClick={handleLogout}

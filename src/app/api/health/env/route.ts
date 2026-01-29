@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { checkEnvHealth } from "@/lib/utils/env";
+import { ENV_KEYS } from "@/lib/utils/env";
 
 // Force dynamic - needs env vars at runtime
 export const dynamic = "force-dynamic";
@@ -9,9 +9,23 @@ export const dynamic = "force-dynamic";
  * Returns which required vars are present/missing (never values)
  */
 export async function GET() {
-    const health = checkEnvHealth();
+    const requiredKeys = [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "GEMINI_API_KEY",
+        "ADMIN_USERNAME",
+        "ADMIN_PASSWORD",
+        "AUTH_SECRET"
+    ];
 
-    return NextResponse.json(health, {
-        status: health.ok ? 200 : 503,
+    const missing = requiredKeys.filter((key) => !process.env[key]);
+
+    return NextResponse.json({
+        ok: missing.length === 0,
+        missing: missing,
+        checked: requiredKeys,
+        timestamp: new Date().toISOString()
+    }, {
+        status: missing.length === 0 ? 200 : 503,
     });
 }
