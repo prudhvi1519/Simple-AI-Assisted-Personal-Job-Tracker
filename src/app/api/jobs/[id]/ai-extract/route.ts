@@ -3,7 +3,7 @@ import { getServerSupabase } from "@/lib/supabase/server";
 import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
 import { Job } from "@/lib/supabase/client";
 import { fetchUrlAsText } from "@/lib/ai/htmlToText";
-import { extractWithGemini } from "@/lib/ai/gemini";
+import { extractWithGemini, GeminiRateLimitError } from "@/lib/ai/gemini";
 import { ExtractionHints, TextSource, getEmptyResult } from "@/lib/ai/prompts";
 
 // Force dynamic - needs env vars at runtime
@@ -212,6 +212,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             },
         });
     } catch (err) {
+        if (err instanceof GeminiRateLimitError) {
+            return NextResponse.json({
+                ok: false,
+                error: {
+                    type: "RATE_LIMIT",
+                    status: 429,
+                    message: err.message,
+                    retryAfterSeconds: err.retryAfterSeconds
+                }
+            }, { status: 429 });
+        }
+
         console.error("Error in AI extract:", err);
         return NextResponse.json(
             { error: "Internal server error" },

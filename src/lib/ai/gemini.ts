@@ -11,6 +11,16 @@ import {
     getEmptyResult,
 } from "./prompts";
 
+export class GeminiRateLimitError extends Error {
+    public retryAfterSeconds: number;
+
+    constructor(message: string, retryAfterSeconds: number) {
+        super(message);
+        this.name = "GeminiRateLimitError";
+        this.retryAfterSeconds = retryAfterSeconds;
+    }
+}
+
 // Use configured model or default to gemini-2.5-flash-lite (Free Tier preferred)
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
@@ -58,28 +68,12 @@ async function callGemini(prompt: string, apiKey: string): Promise<{ text: strin
             // Handle 429 Rate Limit specifically
             if (status === 429) {
                 // Try to extract retry delay if available in text or headers (though usually headers)
-                // Gemini error text example: ... "status": "RESOURCE_EXHAUSTED" ...
                 let retryAfter = 15; // default
 
-                // If specific check needed for "quota 0", it's usually in the message.
-                // We'll return a clean JSON error as requested.
-
-                // Return structured error via the text/error contract
-                // We'll serialize it so the caller can parse it back if they want,
-                // but effectively we just need to return a clean string message for now,
-                // OR strict JSON if we change the return type.
-                // The current contract returns { text, error: string }.
-                // We will flatten it into a readable error message for the UI.
-                return {
-                    text: null,
-                    error: JSON.stringify({
-                        type: "RATE_LIMIT",
-                        status: 429,
-                        message: `Gemini rate limit hit on free tier. Retry after ${retryAfter}s or switch GEMINI_MODEL.`,
-                        retryAfterSeconds: retryAfter,
-                        model: GEMINI_MODEL
-                    })
-                };
+                throw new GeminiRateLimitError(
+                    `Gemini rate limit hit on free tier. Retry after ${retryAfter}s.`,
+                    retryAfter
+                );
             }
 
             return { text: null, error: `Gemini API error: ${status} - ${errorText}` };
