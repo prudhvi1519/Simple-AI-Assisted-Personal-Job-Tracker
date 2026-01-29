@@ -26,6 +26,7 @@ Track job applications + files + AI extraction on a lightweight stack.
   - [📑 Table of Contents](#-table-of-contents)
   - [📷 Screenshots](#-screenshots)
   - [✨ Features](#-features)
+  - [📦 Implementation Status](#-implementation-status)
   - [🛠️ Tech Stack](#️-tech-stack)
   - [🧱 Architecture](#-architecture)
   - [📦 Data Model](#-data-model)
@@ -74,14 +75,17 @@ Place screenshots in `docs/screens/` and reference them here.
 - **Schema Validation**: Endpoints to warn if DB migrations are missing.
 - **Environment Checks**: Boot-time verification of API keys.
 
+## 📦 Implementation Status
+For a detailed log of implemented features and verification proof, please refer to the **[Implementation Status Pack](./STATUS_PACK.md)**.
+
 ## 🛠️ Tech Stack
 
 | Component | Technology | Description |
 |-----------|------------|-------------|
-| **Framework** | Next.js 14 | App Router, Server Actions |
-| **Database** | Supabase | Postgres + Auth (Inactive) |
+| **Framework** | Next.js 14 | App Router + Route Handlers |
+| **Database** | Supabase | Postgres Table Management |
 | **Storage** | Supabase Storage | File hosting |
-| **AI** | Google Gemini | Generative Language API |
+| **AI** | Google Gemini | API (Generative Language) |
 | **Styling** | Tailwind CSS | Utility-first styling |
 | **Hosting** | Netlify | Static + Edge/Serverless |
 
@@ -101,7 +105,7 @@ graph TD
 
 | Table | Description | Key Columns |
 |-------|-------------|-------------|
-| `jobs` | Core Application Data | `id`, `title`, `status`, `primary_skills` |
+| `jobs` | Core Application Data | `id`, `title`, `status`, `primary_skills`, `work_mode` |
 | `job_files` | File References | `id`, `job_id`, `file_type`, `path` |
 | `ai_runs` | Interaction Logs | `id`, `job_id`, `prompt`, `response` |
 
@@ -109,16 +113,24 @@ graph TD
 
 ## 🔌 API Endpoints
 
-| Category | Endpoint | Notes |
-|----------|----------|-------|
-| **Jobs** | `/api/jobs` | GET list, POST create |
-| **Jobs** | `/api/jobs/:id` | GET detail, PUT update, DELETE |
-| **Files** | `/api/jobs/:id/files` | POST upload |
-| **Files** | `/api/files/:fileId` | GET download, DELETE |
-| **AI** | `/api/jobs/:id/ai-extract` | POST text/url to extract |
-| **AI** | `/api/jobs/:id/ai-apply` | POST apply suggestions |
-| **Export** | `/api/export/manifest.json` | GET full backup |
-| **Health** | `/api/health/schema` | GET check DB columns |
+| Category | Method | Endpoint | Description |
+|----------|--------|----------|-------------|
+| **Jobs** | GET | `/api/jobs` | List jobs (supports ?status=, ?priority=) |
+| **Jobs** | POST | `/api/jobs` | Create new job |
+| **Jobs** | GET | `/api/jobs/:id` | Get job details |
+| **Jobs** | PUT | `/api/jobs/:id` | Update job |
+| **Jobs** | DELETE | `/api/jobs/:id` | Delete job |
+| **Files** | POST | `/api/jobs/:id/files` | Upload file |
+| **Files** | GET | `/api/files/:fileId` | Download file (Proxy) |
+| **Files** | DELETE | `/api/files/:fileId` | Delete file |
+| **AI** | POST | `/api/jobs/:id/ai-extract` | Extract fields from text/url |
+| **AI** | POST | `/api/jobs/:id/ai-apply` | Apply AI suggestions to DB |
+| **Export** | GET | `/api/export/jobs.json` | Full jobs export (JSON) |
+| **Export** | GET | `/api/export/jobs.csv` | Full jobs export (CSV) |
+| **Export** | GET | `/api/export/manifest.json` | Deep export (DB + File meta) |
+| **Health** | GET | `/api/health/env` | Check API keys |
+| **Health** | GET | `/api/health/storage` | Check bucket access |
+| **Health** | GET | `/api/health/schema` | Check DB columns |
 
 ## 🚀 Quickstart (Local)
 
@@ -149,7 +161,7 @@ GEMINI_API_KEY=AIzaSy...
 ## 🗄️ Supabase Setup
 
 1. **Create Project**: [database.new](https://database.new)
-2. **Create Bucket**: `job-files` (Public)
+2. **Create Bucket**: `job-files` (Public or Signed URLs).
 3. **Apply Migrations**:
    Run `supabase/migrations/20260128170000_jobs_fields_upgrade.sql` in SQL Editor.
 4. **Reload Schema**:
@@ -164,19 +176,30 @@ Files are stored with the following convention:
 
 ## 🧠 AI Contract
 
-We enforce a Strict JSON response from Gemini:
+We enforce a Strict JSON response from Gemini, matching our PRD:
 
 ```json
 {
-  "confidence": { "skills": 0.9 },
-  "suggested": { ... },
-  "unknown_fields": ["salary"]
+  "title": null,
+  "companyName": null,
+  "reqId": null,
+  "jobPostUrl": null,
+  "applyUrl": null,
+  "location": null,
+  "workMode": null,
+  "skills": [],
+  "summary": null,
+  "confidence": { "title": 0.0 },
+  "sources": { "title": "pasted_text" },
+  "warnings": []
 }
 ```
 
-- **No Guessing**: Unknown fields return `null`.
-- **Validation**: Enums (Remote/Hybrid) are strictly validated.
+- **Unknown → null/[]**: No guessing allowed.
+- **Validation**: Enums (Remote/Hybrid, Priority) are strictly validated.
 - **Fail-safe**: URL fetch failures fall back to user-pasted text.
+- **Selective Apply**: Only fields selected by the user are written to the database.
+- **Mapping**: `location`/`workMode`/`skills` map to structured structured columns; `summary` appends to notes.
 
 ## 📤 Export & Backup
 
@@ -221,9 +244,10 @@ Invoke-RestMethod -Method Post -Uri "url" -Body $body -ContentType "application/
 
 **If using curl.exe:**
 ```powershell
-curl.exe -H "Content-Type: application/json" -d '@body.json' "url"
+curl.exe --data-binary "@body.json" -H "Content-Type: application/json" "url"
 ```
 
 ## 📚 Documentation Index
 - [STATUS_PACK.md](./STATUS_PACK.md) - Feature implementation status.
 - [Database Schema](./supabase/schema.sql)
+- [Migrations](./supabase/migrations/)
