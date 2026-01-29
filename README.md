@@ -5,10 +5,16 @@ Track job applications + files + AI extraction on a lightweight stack.
 ![Repo](https://img.shields.io/badge/Status-Active-success)
 [![Demo](https://img.shields.io/badge/Demo-Live-blue)](https://simple-job-tracker-ai.netlify.app)
 
+<br/>
+<br/>
+
 ## 🔗 Live Demo & Repo
 
 - **Production URL**: [https://simple-job-tracker-ai.netlify.app](https://simple-job-tracker-ai.netlify.app)
 - **Repository**: [https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker](https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker)
+
+<br/>
+<br/>
 
 ## ⚡ At a Glance
 
@@ -20,6 +26,9 @@ Track job applications + files + AI extraction on a lightweight stack.
 - **Data Portability**: Full CSV/JSON exports + Manifest backup (Single Source of Truth).
 - **Production Ready**: Built-in health checks for Environment, Storage, and Schema.
 - **Mobile Optimized**: Responsive Card layouts and Drawer sidebars.
+
+<br/>
+<br/>
 
 ## 📑 Table of Contents
 
@@ -45,6 +54,9 @@ Track job applications + files + AI extraction on a lightweight stack.
   - [🧯 Troubleshooting](#-troubleshooting)
   - [📚 Documentation Index](#-documentation-index)
 
+<br/>
+<br/>
+
 ## 📦 Implementation Status (Summary)
 
 **Current state:** ✅ Feature-complete MVP + mobile-ready + production verified.
@@ -66,6 +78,9 @@ Track job applications + files + AI extraction on a lightweight stack.
 **Link to Full Pack**
 📄 Full proof / regression logs / prompt history: [STATUS_PACK.md](./STATUS_PACK.md)
 
+<br/>
+<br/>
+
 ## 📷 Screenshots
 
 *Screenshots to be added.*
@@ -75,6 +90,9 @@ Track job applications + files + AI extraction on a lightweight stack.
 Place screenshots in `docs/screens/` and reference them here.
 </details>
 
+<br/>
+<br/>
+
 ## ✨ Features
 
 ### A) Jobs & Status
@@ -82,30 +100,43 @@ Place screenshots in `docs/screens/` and reference them here.
 - **Rich Data**: Track more than just titles. Store Recruiter info, compensation ranges, follow-up dates, and source.
 - **Visuals**: Priority Pills (High/Medium/Low) and Status Badges.
 
+<br/>
+
 ### B) Files
 
 - **Resume Hosting**: PDF/DOCX support.
 - **Context Awareness**: Files are strictly linked to `job_id`.
+
+<br/>
 
 ### C) AI Assist
 
 - **Gemini Pro Integration**: Analyzing job descriptions with high accuracy.
 - **Safety First**: "Diff View" ensures no AI hallucination overwrites your data without approval.
 
+<br/>
+
 ### D) Exports & Backup
 
 - **CSV**: for spreadsheet analysis.
 - **Manifest**: Deep JSON export of Database + File metadata.
+
+<br/>
 
 ### E) Mobile UX
 
 - **Card Layout**: Specialized view for small screens.
 - **Drawers**: Smooth slide-overs for adding jobs and viewing details.
 
+<br/>
+
 ### F) Health & Guardrails
 
 - **Schema Validation**: Endpoints to warn if DB migrations are missing.
 - **Environment Checks**: Boot-time verification of API keys.
+
+<br/>
+<br/>
 
 ## 🛠️ Tech Stack
 
@@ -117,6 +148,9 @@ Place screenshots in `docs/screens/` and reference them here.
 | **AI** | Google Gemini | API (Generative Language) |
 | **Styling** | Tailwind CSS | Utility-first styling |
 | **Hosting** | Netlify | Static + Edge/Serverless |
+
+<br/>
+<br/>
 
 ## 🧱 Architecture
 
@@ -130,6 +164,9 @@ graph TD
     Next -->|Log| AIRuns[ai_runs Table]
 ```
 
+<br/>
+<br/>
+
 ## 📦 Data Model
 
 | Table | Description | Key Columns |
@@ -139,6 +176,9 @@ graph TD
 | `ai_runs` | Interaction Logs | `id`, `job_id`, `prompt`, `response` |
 
 **Migrations**: `supabase/migrations/20260128170000_jobs_fields_upgrade.sql`
+
+<br/>
+<br/>
 
 ## 🔌 API Endpoints
 
@@ -161,6 +201,9 @@ graph TD
 | **Health** | GET | `/api/health/storage` | Check bucket access |
 | **Health** | GET | `/api/health/schema` | Check DB columns |
 
+<br/>
+<br/>
+
 ## 🚀 Quickstart (Local)
 
 ```powershell
@@ -177,6 +220,9 @@ npm run dev
 npm run build
 ```
 
+<br/>
+<br/>
+
 ## 🔐 Environment Variables
 
 Create `.env.local`:
@@ -186,6 +232,9 @@ NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
 GEMINI_API_KEY=AIzaSy...
 ```
+
+<br/>
+<br/>
 
 ## 🗄️ Supabase Setup
 
@@ -198,11 +247,17 @@ GEMINI_API_KEY=AIzaSy...
    NOTIFY pgrst, 'reload schema';
    ```
 
+<br/>
+<br/>
+
 ## 📁 Storage Paths
 
 Files are stored with the following convention:
 - **Resumes**: `jobs/<jobId>/resume/<fileId>-<originalName>`
 - **Docs**: `jobs/<jobId>/document/<fileId>-<originalName>`
+
+<br/>
+<br/>
 
 ## 🧠 AI Contract
 
@@ -231,6 +286,9 @@ We enforce a Strict JSON response from Gemini, matching our PRD:
 - **Selective Apply**: Only fields selected by the user are written to the database.
 - **Mapping**: `location`/`workMode`/`skills` map to structured columns; `summary` appends to notes.
 
+<br/>
+<br/>
+
 ## 📤 Export & Backup
 
 - **CSV**: `/api/export/jobs.csv`
@@ -243,6 +301,9 @@ We enforce a Strict JSON response from Gemini, matching our PRD:
 Invoke-RestMethod -Uri "http://localhost:3000/api/export/manifest.json" -OutFile "backup.json"
 ```
 
+<br/>
+<br/>
+
 ## ✅ Health Checks
 
 | Endpoint | Checks |
@@ -250,6 +311,9 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/export/manifest.json" -OutFile
 | `/api/health/env` | API Keys presence |
 | `/api/health/storage` | Bucket accessibility |
 | `/api/health/schema` | **Critical**: Verifies DB migration applied |
+
+<br/>
+<br/>
 
 ## 🧰 Deployment (Netlify)
 
@@ -260,6 +324,9 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/export/manifest.json" -OutFile
    netlify deploy --prod
    ```
 4. **Verify**: Check `/api/health/env`.
+
+<br/>
+<br/>
 
 ## 🧯 Troubleshooting
 
@@ -279,6 +346,9 @@ Invoke-RestMethod -Method Post -Uri "url" -Body $body -ContentType "application/
 ```powershell
 curl.exe --data-binary "@body.json" -H "Content-Type: application/json" "url"
 ```
+
+<br/>
+<br/>
 
 ## 📚 Documentation Index
 
