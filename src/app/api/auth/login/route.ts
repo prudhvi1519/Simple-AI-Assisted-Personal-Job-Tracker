@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     } catch (err) {
         console.error("Login error:", err);
         return NextResponse.json(
-            { ok: false, error: "Login failed" },
+            { ok: false, error: `Login failed: ${err instanceof Error ? err.message : String(err)}` },
             { status: 500 }
         );
     }
