@@ -199,6 +199,7 @@ Create `.env.local`:
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
 GEMINI_API_KEY=AIzaSy...
+GEMINI_MODEL=gemini-2.0-flash
 ```
 
 <br/>
@@ -274,6 +275,7 @@ Invoke-RestMethod -Uri "http://localhost:3000/api/export/manifest.json" -OutFile
 | `/api/health/env` | API Keys presence |
 | `/api/health/storage` | Bucket accessibility |
 | `/api/health/schema` | **Critical**: Verifies DB migration applied |
+| `/api/health/gemini` | Verify configured model exists + supports generateContent |
 
 <br/>
 
