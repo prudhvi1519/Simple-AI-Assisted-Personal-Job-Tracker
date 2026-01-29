@@ -154,6 +154,27 @@ export default function JobsPage() {
     // AI Assist modal
     const [aiAssistJob, setAiAssistJob] = useState<Job | null>(null);
 
+    // Add Job AI Assist state
+    const [addJobTab, setAddJobTab] = useState<"manual" | "ai">("manual");
+    const [aiJdText, setAiJdText] = useState("");
+    const [aiExtracting, setAiExtracting] = useState(false);
+    const [aiError, setAiError] = useState<string | null>(null);
+    const [aiCooldownUntil, setAiCooldownUntil] = useState<number | null>(null);
+    const [aiSecondsRemaining, setAiSecondsRemaining] = useState(0);
+    const [aiResult, setAiResult] = useState<{
+        title?: string | null;
+        companyName?: string | null;
+        reqId?: string | null;
+        jobPostUrl?: string | null;
+        applyUrl?: string | null;
+        recruiterEmails?: string[];
+        location?: string | null;
+        workMode?: string | null;
+        skills?: string[];
+        summary?: string | null;
+    } | null>(null);
+    const [aiSelectedFields, setAiSelectedFields] = useState<Set<string>>(new Set());
+
     // Fetch jobs
     const fetchJobs = useCallback(async () => {
         try {
@@ -199,6 +220,107 @@ export default function JobsPage() {
         }, 300);
         return () => clearTimeout(timer);
     }, [query, fetchJobs]);
+
+    // AI Cooldown Timer Effect
+    useEffect(() => {
+        if (!aiCooldownUntil) {
+            setAiSecondsRemaining(0);
+            return;
+        }
+
+        const tick = () => {
+            const now = Date.now();
+            const remain = Math.ceil((aiCooldownUntil - now) / 1000);
+            if (remain <= 0) {
+                setAiCooldownUntil(null);
+                setAiSecondsRemaining(0);
+            } else {
+                setAiSecondsRemaining(remain);
+            }
+        };
+
+        tick();
+        const interval = setInterval(tick, 1000);
+        return () => clearInterval(interval);
+    }, [aiCooldownUntil]);
+
+    // Handle AI extraction for Add Job
+    const handleAiExtract = async () => {
+        if (aiExtracting || aiCooldownUntil) return;
+        if (!aiJdText.trim()) {
+            setAiError("Please paste job description text to extract from.");
+            return;
+        }
+
+        setAiExtracting(true);
+        setAiError(null);
+
+        try {
+            const res = await fetch("/api/ai/job-extract", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ text: aiJdText }),
+            });
+
+            const data = await res.json();
+
+            if (res.status === 429) {
+                const retrySeconds = data.retryAfterSeconds || 60;
+                setAiCooldownUntil(Date.now() + retrySeconds * 1000);
+                setAiError(`Rate limited. Please wait ${retrySeconds} seconds.`);
+                return;
+            }
+
+            if (!res.ok || !data.ok) {
+                throw new Error(data.error || "Extraction failed");
+            }
+
+            // Store result and select all non-null fields by default
+            const extracted = data.data;
+            setAiResult(extracted);
+
+            const defaultSelected = new Set<string>();
+            if (extracted.title) defaultSelected.add("title");
+            if (extracted.companyName) defaultSelected.add("companyName");
+            if (extracted.reqId) defaultSelected.add("reqId");
+            if (extracted.jobPostUrl) defaultSelected.add("jobPostUrl");
+            if (extracted.applyUrl) defaultSelected.add("applyUrl");
+            if (extracted.recruiterEmails?.length) defaultSelected.add("recruiterEmails");
+            if (extracted.location) defaultSelected.add("location");
+            if (extracted.workMode) defaultSelected.add("workMode");
+            if (extracted.skills?.length) defaultSelected.add("skills");
+            if (extracted.summary) defaultSelected.add("summary");
+            setAiSelectedFields(defaultSelected);
+        } catch (err) {
+            setAiError(err instanceof Error ? err.message : "Extraction failed");
+        } finally {
+            setAiExtracting(false);
+        }
+    };
+
+    // Apply selected AI fields to form
+    const handleApplyAiFields = () => {
+        if (!aiResult) return;
+
+        setFormData((d) => ({
+            ...d,
+            title: aiSelectedFields.has("title") && aiResult.title ? aiResult.title : d.title,
+            company_name: aiSelectedFields.has("companyName") && aiResult.companyName ? aiResult.companyName : d.company_name,
+            req_id: aiSelectedFields.has("reqId") && aiResult.reqId ? aiResult.reqId : d.req_id,
+            job_post_url: aiSelectedFields.has("jobPostUrl") && aiResult.jobPostUrl ? aiResult.jobPostUrl : d.job_post_url,
+            apply_url: aiSelectedFields.has("applyUrl") && aiResult.applyUrl ? aiResult.applyUrl : d.apply_url,
+            recruiter_email: aiSelectedFields.has("recruiterEmails") && aiResult.recruiterEmails?.[0] ? aiResult.recruiterEmails[0] : d.recruiter_email,
+            location: aiSelectedFields.has("location") && aiResult.location ? aiResult.location : d.location,
+            work_mode: aiSelectedFields.has("workMode") && aiResult.workMode ? aiResult.workMode as WorkMode : d.work_mode,
+            primary_skills: aiSelectedFields.has("skills") && aiResult.skills?.length ? aiResult.skills.join(", ") : d.primary_skills,
+            notes: aiSelectedFields.has("summary") && aiResult.summary ? (d.notes ? d.notes + "\n\n" + aiResult.summary : aiResult.summary) : d.notes,
+        }));
+
+        // Switch to manual tab to show applied values
+        setAddJobTab("manual");
+        setAiResult(null);
+        setAiSelectedFields(new Set());
+    };
 
     // Handle add job (two-step: create job, then upload resume if selected)
     const handleAddJob = async (e: React.FormEvent) => {
@@ -439,11 +561,11 @@ export default function JobsPage() {
                 </div>
             )}
 
-            {/* Jobs Content (Desktop Split View) */}
+            {/* Jobs Content (Full Width Table) */}
             {!loading && !error && jobs.length > 0 && (
-                <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-250px)]">
-                    {/* Table Column */}
-                    <div className={`flex-1 transition-all duration-300 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--background)] flex flex-col ${selectedJobId ? 'md:w-1/2' : 'w-full'}`}>
+                <div className="h-[calc(100vh-250px)]">
+                    {/* Table Container */}
+                    <div className="h-full overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--background)] flex flex-col">
                         <div className="overflow-auto flex-1">
                             <table className="w-full relative border-collapse">
                                 <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
@@ -574,13 +696,6 @@ export default function JobsPage() {
                                                     </div>
                                                 </td>
 
-                                                {/* Caret for selected state */}
-                                                {isSelected && (
-                                                    <td className="absolute right-0 top-1/2 -translate-y-1/2 w-4 overflow-visible hidden md:block">
-                                                        <div className="w-0 h-0 border-t-[8px] border-t-transparent border-r-[8px] border-r-[var(--border)] border-b-[8px] border-b-transparent transform translate-x-[1px]" />
-                                                        <div className="absolute top-0 w-0 h-0 border-t-[8px] border-t-transparent border-r-[8px] border-r-[var(--background)] border-b-[8px] border-b-transparent transform translate-x-[2px]" />
-                                                    </td>
-                                                )}
                                             </tr>
                                         );
                                     })}
@@ -588,24 +703,12 @@ export default function JobsPage() {
                             </table>
                         </div>
                     </div>
-
-                    {/* Details Panel (Desktop) */}
-                    {selectedJobId && (
-                        <div className="hidden md:block w-1/3 min-w-[350px] h-full shadow-lg rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--background)] animate-in slide-in-from-right-10 duration-200">
-                            <JobDetailsPanel
-                                jobId={selectedJobId}
-                                onClose={() => setSelectedJobId(null)}
-                                onEdit={() => router.push(`/jobs/${selectedJobId}`)}
-                                onAiAssist={(job) => setAiAssistJob(job)}
-                            />
-                        </div>
-                    )}
                 </div>
             )}
 
-            {/* Mobile Details Modal */}
+            {/* Job Details Modal (All Screen Sizes) */}
             <Modal
-                isOpen={!!selectedJobId && typeof window !== 'undefined' && window.innerWidth < 768}
+                isOpen={!!selectedJobId}
                 onClose={() => setSelectedJobId(null)}
                 title="Job Details"
             >
@@ -614,8 +717,14 @@ export default function JobsPage() {
                         <JobDetailsPanel
                             jobId={selectedJobId}
                             onClose={() => setSelectedJobId(null)}
-                            onEdit={() => router.push(`/jobs/${selectedJobId}`)}
-                            onAiAssist={(job) => setAiAssistJob(job)}
+                            onEdit={() => {
+                                setSelectedJobId(null);
+                                router.push(`/jobs/${selectedJobId}`);
+                            }}
+                            onAiAssist={(job) => {
+                                setSelectedJobId(null);
+                                setAiAssistJob(job);
+                            }}
                         />
                     </div>
                 )}
@@ -823,319 +932,575 @@ export default function JobsPage() {
             {/* Add Job Modal */}
             <Modal
                 isOpen={showAddModal}
-                onClose={() => setShowAddModal(false)}
+                onClose={() => {
+                    setShowAddModal(false);
+                    setAddJobTab("manual");
+                    setAiJdText("");
+                    setAiResult(null);
+                    setAiError(null);
+                }}
                 title="Add Job"
             >
-                <form onSubmit={handleAddJob} className="space-y-4">
-                    {formError && (
-                        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 text-sm">
-                            {formError}
-                        </div>
-                    )}
+                {/* Tab Toggle */}
+                <div className="flex gap-2 mb-4 border-b border-[var(--border)]">
+                    <button
+                        type="button"
+                        className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${addJobTab === "manual"
+                            ? "border-[var(--primary)] text-[var(--primary)]"
+                            : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+                            }`}
+                        onClick={() => setAddJobTab("manual")}
+                    >
+                        Manual Entry
+                    </button>
+                    <button
+                        type="button"
+                        className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px flex items-center gap-1.5 ${addJobTab === "ai"
+                            ? "border-purple-500 text-purple-600 dark:text-purple-400"
+                            : "border-transparent text-[var(--muted)] hover:text-[var(--foreground)]"
+                            }`}
+                        onClick={() => setAddJobTab("ai")}
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                        </svg>
+                        AI Assist
+                    </button>
+                </div>
 
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Title</label>
-                        <Input
-                            placeholder="e.g., Senior Software Engineer"
-                            value={formData.title}
-                            onChange={(e) =>
-                                setFormData((d) => ({ ...d, title: e.target.value }))
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Company</label>
-                        <Input
-                            placeholder="e.g., Acme Corp"
-                            value={formData.company_name}
-                            onChange={(e) =>
-                                setFormData((d) => ({ ...d, company_name: e.target.value }))
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">
-                            Requisition ID
-                        </label>
-                        <Input
-                            placeholder="e.g., REQ-12345"
-                            value={formData.req_id}
-                            onChange={(e) =>
-                                setFormData((d) => ({ ...d, req_id: e.target.value }))
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">
-                            Job Posting URL
-                        </label>
-                        <Input
-                            type="url"
-                            placeholder="https://..."
-                            value={formData.job_post_url}
-                            onChange={(e) =>
-                                setFormData((d) => ({ ...d, job_post_url: e.target.value }))
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Apply URL</label>
-                        <Input
-                            type="url"
-                            placeholder="https://..."
-                            value={formData.apply_url}
-                            onChange={(e) =>
-                                setFormData((d) => ({ ...d, apply_url: e.target.value }))
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">
-                            Recruiter Email
-                        </label>
-                        <Input
-                            type="email"
-                            placeholder="recruiter@company.com"
-                            value={formData.recruiter_email}
-                            onChange={(e) =>
-                                setFormData((d) => ({ ...d, recruiter_email: e.target.value }))
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Status</label>
-                        <Select
-                            options={FORM_STATUS_OPTIONS}
-                            value={formData.status}
-                            onChange={(e) =>
-                                setFormData((d) => ({
-                                    ...d,
-                                    status: e.target.value as JobStatus,
-                                }))
-                            }
-                        />
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium mb-1">Notes</label>
-                        <textarea
-                            className="w-full h-24 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent resize-none"
-                            placeholder="Any additional notes..."
-                            value={formData.notes}
-                            onChange={(e) =>
-                                setFormData((d) => ({ ...d, notes: e.target.value }))
-                            }
-                        />
-                    </div>
-
-                    {/* More Details Accordion */}
-                    <div className="border-t border-[var(--border)] pt-2">
-                        <button
-                            type="button"
-                            className="flex items-center justify-between w-full text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-                            onClick={() => setShowMoreDetails(!showMoreDetails)}
-                        >
-                            <span>More details (optional)</span>
-                            <svg
-                                className={`w-4 h-4 transition-transform ${showMoreDetails ? "rotate-180" : ""}`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-
-                        {showMoreDetails && (
-                            <div className="mt-3 space-y-3">
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Recruiter Name</label>
-                                        <Input
-                                            placeholder="John Doe"
-                                            value={formData.recruiter_name}
-                                            onChange={(e) =>
-                                                setFormData((d) => ({ ...d, recruiter_name: e.target.value }))
-                                            }
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Source</label>
-                                        <Input
-                                            placeholder="LinkedIn, Referral..."
-                                            value={formData.source}
-                                            onChange={(e) =>
-                                                setFormData((d) => ({ ...d, source: e.target.value }))
-                                            }
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Priority</label>
-                                        <Select
-                                            options={PRIORITY_OPTIONS}
-                                            value={formData.priority}
-                                            onChange={(e) =>
-                                                setFormData((d) => ({ ...d, priority: e.target.value as Priority | "" }))
-                                            }
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Work Mode</label>
-                                        <Select
-                                            options={WORK_MODE_OPTIONS}
-                                            value={formData.work_mode}
-                                            onChange={(e) =>
-                                                setFormData((d) => ({ ...d, work_mode: e.target.value as WorkMode | "" }))
-                                            }
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Location</label>
-                                        <Input
-                                            placeholder="San Francisco, CA"
-                                            value={formData.location}
-                                            onChange={(e) =>
-                                                setFormData((d) => ({ ...d, location: e.target.value }))
-                                            }
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium mb-1">Compensation</label>
-                                        <Input
-                                            placeholder="$150k-180k"
-                                            value={formData.compensation_text}
-                                            onChange={(e) =>
-                                                setFormData((d) => ({ ...d, compensation_text: e.target.value }))
-                                            }
-                                        />
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">Next Follow-up</label>
-                                    <Input
-                                        type="datetime-local"
-                                        value={formData.next_followup_at}
-                                        onChange={(e) =>
-                                            setFormData((d) => ({ ...d, next_followup_at: e.target.value }))
-                                        }
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">
-                                        Primary Skills{" "}
-                                        <span className="font-normal text-[var(--muted)]">(comma-separated, max 10)</span>
-                                    </label>
-                                    <Input
-                                        placeholder="React, TypeScript, Node.js"
-                                        value={formData.primary_skills}
-                                        onChange={(e) =>
-                                            setFormData((d) => ({ ...d, primary_skills: e.target.value }))
-                                        }
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium mb-1">
-                                        Secondary Skills{" "}
-                                        <span className="font-normal text-[var(--muted)]">(nice-to-have, max 20)</span>
-                                    </label>
-                                    <Input
-                                        placeholder="GraphQL, Docker, AWS"
-                                        value={formData.secondary_skills}
-                                        onChange={(e) =>
-                                            setFormData((d) => ({ ...d, secondary_skills: e.target.value }))
-                                        }
-                                    />
-                                </div>
+                {/* AI Assist Tab Content */}
+                {addJobTab === "ai" && (
+                    <div className="space-y-4">
+                        {/* Cooldown Warning */}
+                        {aiCooldownUntil && aiSecondsRemaining > 0 && (
+                            <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-200 text-sm">
+                                ⏳ Rate limited. Please wait {aiSecondsRemaining}s before trying again.
                             </div>
                         )}
-                    </div>
 
-                    {/* Resume (optional) */}
-                    <div className="pt-2 border-t border-[var(--border)]">
-                        <label className="block text-sm font-medium mb-1">
-                            Resume{" "}
-                            <span className="font-normal text-[var(--muted)]">
-                                (optional)
-                            </span>
-                        </label>
-                        <input
-                            ref={resumeInputRef}
-                            type="file"
-                            accept=".pdf,.doc,.docx"
-                            className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[var(--primary)] file:text-white hover:file:opacity-90 cursor-pointer"
-                            onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                        />
-                        <p className="text-xs text-[var(--muted)] mt-1">
-                            If uploaded with status &quot;Saved&quot;, status will change to &quot;Applied&quot;.
-                        </p>
-                        {resumeUploadSuccess && (
-                            <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                                Resume uploaded successfully!
-                            </p>
+                        {/* Error */}
+                        {aiError && !aiCooldownUntil && (
+                            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 text-sm">
+                                {aiError}
+                            </div>
                         )}
-                        {resumeUploadError && (
-                            <div className="mt-2 p-2 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
-                                <p className="text-xs text-red-600 dark:text-red-400">
-                                    Job created, but resume upload failed: {resumeUploadError}
-                                </p>
-                                <button
-                                    type="button"
-                                    onClick={handleRetryResumeUpload}
-                                    disabled={uploadingResume}
-                                    className="mt-2 text-xs font-medium text-red-700 dark:text-red-300 hover:underline disabled:opacity-50 flex items-center gap-1"
-                                >
-                                    {uploadingResume ? (
-                                        <>
-                                            <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
-                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                                            </svg>
-                                            Retrying...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                            </svg>
-                                            Retry Upload
-                                        </>
+
+                        {/* Input Area */}
+                        {!aiResult && (
+                            <>
+                                <div>
+                                    <label className="block text-sm font-medium mb-1">
+                                        Paste Job Description
+                                    </label>
+                                    <textarea
+                                        className="w-full h-40 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                                        placeholder="Paste the full job description text here..."
+                                        value={aiJdText}
+                                        onChange={(e) => setAiJdText(e.target.value)}
+                                    />
+                                    <p className="text-xs text-[var(--muted)] mt-1">
+                                        AI will extract: title, company, location, skills, and more
+                                    </p>
+                                </div>
+
+                                <div className="flex justify-end">
+                                    <Button
+                                        type="button"
+                                        onClick={handleAiExtract}
+                                        disabled={aiExtracting || !aiJdText.trim() || !!aiCooldownUntil}
+                                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                                    >
+                                        {aiExtracting ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                </svg>
+                                                Extracting...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                                </svg>
+                                                Extract with AI
+                                            </>
+                                        )}
+                                    </Button>
+                                </div>
+                            </>
+                        )}
+
+                        {/* Extraction Results */}
+                        {aiResult && (
+                            <div className="space-y-4">
+                                <div className="text-sm font-medium text-green-600 dark:text-green-400 flex items-center gap-1.5">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Extraction complete! Select fields to apply:
+                                </div>
+
+                                <div className="max-h-64 overflow-y-auto border border-[var(--border)] rounded-lg divide-y divide-[var(--border)]">
+                                    {/* Title */}
+                                    {aiResult.title && (
+                                        <label className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={aiSelectedFields.has("title")}
+                                                onChange={(e) => {
+                                                    const next = new Set(aiSelectedFields);
+                                                    e.target.checked ? next.add("title") : next.delete("title");
+                                                    setAiSelectedFields(next);
+                                                }}
+                                                className="rounded"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs text-[var(--muted)]">Title</div>
+                                                <div className="text-sm truncate">{aiResult.title}</div>
+                                            </div>
+                                        </label>
                                     )}
-                                </button>
+
+                                    {/* Company */}
+                                    {aiResult.companyName && (
+                                        <label className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={aiSelectedFields.has("companyName")}
+                                                onChange={(e) => {
+                                                    const next = new Set(aiSelectedFields);
+                                                    e.target.checked ? next.add("companyName") : next.delete("companyName");
+                                                    setAiSelectedFields(next);
+                                                }}
+                                                className="rounded"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs text-[var(--muted)]">Company</div>
+                                                <div className="text-sm truncate">{aiResult.companyName}</div>
+                                            </div>
+                                        </label>
+                                    )}
+
+                                    {/* Location */}
+                                    {aiResult.location && (
+                                        <label className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={aiSelectedFields.has("location")}
+                                                onChange={(e) => {
+                                                    const next = new Set(aiSelectedFields);
+                                                    e.target.checked ? next.add("location") : next.delete("location");
+                                                    setAiSelectedFields(next);
+                                                }}
+                                                className="rounded"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs text-[var(--muted)]">Location</div>
+                                                <div className="text-sm truncate">{aiResult.location}</div>
+                                            </div>
+                                        </label>
+                                    )}
+
+                                    {/* Work Mode */}
+                                    {aiResult.workMode && (
+                                        <label className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={aiSelectedFields.has("workMode")}
+                                                onChange={(e) => {
+                                                    const next = new Set(aiSelectedFields);
+                                                    e.target.checked ? next.add("workMode") : next.delete("workMode");
+                                                    setAiSelectedFields(next);
+                                                }}
+                                                className="rounded"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs text-[var(--muted)]">Work Mode</div>
+                                                <div className="text-sm truncate">{aiResult.workMode}</div>
+                                            </div>
+                                        </label>
+                                    )}
+
+                                    {/* Skills */}
+                                    {aiResult.skills && aiResult.skills.length > 0 && (
+                                        <label className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={aiSelectedFields.has("skills")}
+                                                onChange={(e) => {
+                                                    const next = new Set(aiSelectedFields);
+                                                    e.target.checked ? next.add("skills") : next.delete("skills");
+                                                    setAiSelectedFields(next);
+                                                }}
+                                                className="rounded"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs text-[var(--muted)]">Skills</div>
+                                                <div className="text-sm truncate">{aiResult.skills.join(", ")}</div>
+                                            </div>
+                                        </label>
+                                    )}
+
+                                    {/* Summary */}
+                                    {aiResult.summary && (
+                                        <label className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-900 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={aiSelectedFields.has("summary")}
+                                                onChange={(e) => {
+                                                    const next = new Set(aiSelectedFields);
+                                                    e.target.checked ? next.add("summary") : next.delete("summary");
+                                                    setAiSelectedFields(next);
+                                                }}
+                                                className="rounded"
+                                            />
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-xs text-[var(--muted)]">Summary (→ Notes)</div>
+                                                <div className="text-sm line-clamp-2">{aiResult.summary}</div>
+                                            </div>
+                                        </label>
+                                    )}
+                                </div>
+
+                                <div className="flex justify-between gap-3">
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={() => {
+                                            setAiResult(null);
+                                            setAiSelectedFields(new Set());
+                                        }}
+                                    >
+                                        ← Back
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        onClick={handleApplyAiFields}
+                                        disabled={aiSelectedFields.size === 0}
+                                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                                    >
+                                        Apply {aiSelectedFields.size} Field{aiSelectedFields.size !== 1 ? "s" : ""}
+                                    </Button>
+                                </div>
                             </div>
                         )}
                     </div>
+                )}
 
-                    <div className="flex justify-end gap-3 pt-4">
-                        <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => setShowAddModal(false)}
-                        >
-                            Cancel
-                        </Button>
-                        <Button type="submit" isLoading={formLoading || uploadingResume}>
-                            {uploadingResume ? "Uploading resume..." : formLoading ? "Saving..." : "Add Job"}
-                        </Button>
-                    </div>
-                </form>
+                {/* Manual Entry Tab Content */}
+                {addJobTab === "manual" && (
+                    <form onSubmit={handleAddJob} className="space-y-4">
+                        {formError && (
+                            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-200 text-sm">
+                                {formError}
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Title</label>
+                            <Input
+                                placeholder="e.g., Senior Software Engineer"
+                                value={formData.title}
+                                onChange={(e) =>
+                                    setFormData((d) => ({ ...d, title: e.target.value }))
+                                }
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Company</label>
+                            <Input
+                                placeholder="e.g., Acme Corp"
+                                value={formData.company_name}
+                                onChange={(e) =>
+                                    setFormData((d) => ({ ...d, company_name: e.target.value }))
+                                }
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">
+                                Requisition ID
+                            </label>
+                            <Input
+                                placeholder="e.g., REQ-12345"
+                                value={formData.req_id}
+                                onChange={(e) =>
+                                    setFormData((d) => ({ ...d, req_id: e.target.value }))
+                                }
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">
+                                Job Posting URL
+                            </label>
+                            <Input
+                                type="url"
+                                placeholder="https://..."
+                                value={formData.job_post_url}
+                                onChange={(e) =>
+                                    setFormData((d) => ({ ...d, job_post_url: e.target.value }))
+                                }
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Apply URL</label>
+                            <Input
+                                type="url"
+                                placeholder="https://..."
+                                value={formData.apply_url}
+                                onChange={(e) =>
+                                    setFormData((d) => ({ ...d, apply_url: e.target.value }))
+                                }
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">
+                                Recruiter Email
+                            </label>
+                            <Input
+                                type="email"
+                                placeholder="recruiter@company.com"
+                                value={formData.recruiter_email}
+                                onChange={(e) =>
+                                    setFormData((d) => ({ ...d, recruiter_email: e.target.value }))
+                                }
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Status</label>
+                            <Select
+                                options={FORM_STATUS_OPTIONS}
+                                value={formData.status}
+                                onChange={(e) =>
+                                    setFormData((d) => ({
+                                        ...d,
+                                        status: e.target.value as JobStatus,
+                                    }))
+                                }
+                            />
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium mb-1">Notes</label>
+                            <textarea
+                                className="w-full h-24 px-3 py-2 text-sm rounded-lg border border-[var(--border)] bg-[var(--background)] focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent resize-none"
+                                placeholder="Any additional notes..."
+                                value={formData.notes}
+                                onChange={(e) =>
+                                    setFormData((d) => ({ ...d, notes: e.target.value }))
+                                }
+                            />
+                        </div>
+
+                        {/* More Details Accordion */}
+                        <div className="border-t border-[var(--border)] pt-2">
+                            <button
+                                type="button"
+                                className="flex items-center justify-between w-full text-sm font-medium text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                                onClick={() => setShowMoreDetails(!showMoreDetails)}
+                            >
+                                <span>More details (optional)</span>
+                                <svg
+                                    className={`w-4 h-4 transition-transform ${showMoreDetails ? "rotate-180" : ""}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                </svg>
+                            </button>
+
+                            {showMoreDetails && (
+                                <div className="mt-3 space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Recruiter Name</label>
+                                            <Input
+                                                placeholder="John Doe"
+                                                value={formData.recruiter_name}
+                                                onChange={(e) =>
+                                                    setFormData((d) => ({ ...d, recruiter_name: e.target.value }))
+                                                }
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Source</label>
+                                            <Input
+                                                placeholder="LinkedIn, Referral..."
+                                                value={formData.source}
+                                                onChange={(e) =>
+                                                    setFormData((d) => ({ ...d, source: e.target.value }))
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Priority</label>
+                                            <Select
+                                                options={PRIORITY_OPTIONS}
+                                                value={formData.priority}
+                                                onChange={(e) =>
+                                                    setFormData((d) => ({ ...d, priority: e.target.value as Priority | "" }))
+                                                }
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Work Mode</label>
+                                            <Select
+                                                options={WORK_MODE_OPTIONS}
+                                                value={formData.work_mode}
+                                                onChange={(e) =>
+                                                    setFormData((d) => ({ ...d, work_mode: e.target.value as WorkMode | "" }))
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Location</label>
+                                            <Input
+                                                placeholder="San Francisco, CA"
+                                                value={formData.location}
+                                                onChange={(e) =>
+                                                    setFormData((d) => ({ ...d, location: e.target.value }))
+                                                }
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium mb-1">Compensation</label>
+                                            <Input
+                                                placeholder="$150k-180k"
+                                                value={formData.compensation_text}
+                                                onChange={(e) =>
+                                                    setFormData((d) => ({ ...d, compensation_text: e.target.value }))
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">Next Follow-up</label>
+                                        <Input
+                                            type="datetime-local"
+                                            value={formData.next_followup_at}
+                                            onChange={(e) =>
+                                                setFormData((d) => ({ ...d, next_followup_at: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">
+                                            Primary Skills{" "}
+                                            <span className="font-normal text-[var(--muted)]">(comma-separated, max 10)</span>
+                                        </label>
+                                        <Input
+                                            placeholder="React, TypeScript, Node.js"
+                                            value={formData.primary_skills}
+                                            onChange={(e) =>
+                                                setFormData((d) => ({ ...d, primary_skills: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium mb-1">
+                                            Secondary Skills{" "}
+                                            <span className="font-normal text-[var(--muted)]">(nice-to-have, max 20)</span>
+                                        </label>
+                                        <Input
+                                            placeholder="GraphQL, Docker, AWS"
+                                            value={formData.secondary_skills}
+                                            onChange={(e) =>
+                                                setFormData((d) => ({ ...d, secondary_skills: e.target.value }))
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Resume (optional) */}
+                        <div className="pt-2 border-t border-[var(--border)]">
+                            <label className="block text-sm font-medium mb-1">
+                                Resume{" "}
+                                <span className="font-normal text-[var(--muted)]">
+                                    (optional)
+                                </span>
+                            </label>
+                            <input
+                                ref={resumeInputRef}
+                                type="file"
+                                accept=".pdf,.doc,.docx"
+                                className="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-[var(--primary)] file:text-white hover:file:opacity-90 cursor-pointer"
+                                onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
+                            />
+                            <p className="text-xs text-[var(--muted)] mt-1">
+                                If uploaded with status &quot;Saved&quot;, status will change to &quot;Applied&quot;.
+                            </p>
+                            {resumeUploadSuccess && (
+                                <p className="text-xs text-green-600 dark:text-green-400 mt-1 flex items-center gap-1">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                    Resume uploaded successfully!
+                                </p>
+                            )}
+                            {resumeUploadError && (
+                                <div className="mt-2 p-2 rounded-lg bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800">
+                                    <p className="text-xs text-red-600 dark:text-red-400">
+                                        Job created, but resume upload failed: {resumeUploadError}
+                                    </p>
+                                    <button
+                                        type="button"
+                                        onClick={handleRetryResumeUpload}
+                                        disabled={uploadingResume}
+                                        className="mt-2 text-xs font-medium text-red-700 dark:text-red-300 hover:underline disabled:opacity-50 flex items-center gap-1"
+                                    >
+                                        {uploadingResume ? (
+                                            <>
+                                                <svg className="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                                </svg>
+                                                Retrying...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                                Retry Upload
+                                            </>
+                                        )}
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => setShowAddModal(false)}
+                            >
+                                Cancel
+                            </Button>
+                            <Button type="submit" isLoading={formLoading || uploadingResume}>
+                                {uploadingResume ? "Uploading resume..." : formLoading ? "Saving..." : "Add Job"}
+                            </Button>
+                        </div>
+                    </form>
+                )}
             </Modal>
 
             {/* Delete Confirmation Modal */}
