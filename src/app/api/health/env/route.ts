@@ -15,7 +15,8 @@ export async function GET() {
         "GEMINI_API_KEY",
         "ADMIN_USERNAME",
         "ADMIN_PASSWORD",
-        "AUTH_SECRET"
+        "AUTH_SECRET",
+        "SUPABASE_SERVICE_ROLE_KEY"
     ];
 
     const missing = requiredKeys.filter((key) => !process.env[key]);
