@@ -1,6 +1,6 @@
 # 📦 Implementation Status Pack
 
-Current State of the `Simple AI-Assisted Personal Job Tracker` as of Prompt 33.
+Current State of the `Simple AI-Assisted Personal Job Tracker` as of Prompt 38.
 
 ## ✅ Completed Features
 
@@ -58,6 +58,14 @@ Current State of the `Simple AI-Assisted Personal Job Tracker` as of Prompt 33.
   - [x] `/api/health/schema`: Verifies Database Migration (columns existence).
 - **Migration**: Confirmed applied in Production.
 
+### 7. Documentation & Polish (Prompts 36-38)
+- **README**:
+  - [x] "Status Pack Lite" summary added.
+  - [x] Whitespace optimized (single visual breaks).
+  - [x] Fixed broken markdown codes and JSON contracts.
+- **Bug Fixes**:
+  - [x] **Jobs Loading**: Fixed infinite spinner bug (Prompt 35).
+
 ## 🚧 Pending / Next Steps
 
 - **AI Run History**: Table exists (`ai_runs`), but UI for viewing past runs is not yet implemented.
@@ -72,3 +80,5 @@ Current State of the `Simple AI-Assisted Personal Job Tracker` as of Prompt 33.
 | **New Fields** | `POST /api/jobs` (Prod) | ✅ Verified Persistence |
 | **CSV Export** | `GET /api/export/jobs.csv` | ✅ Verified Headers |
 | **AI Apply** | `POST /api/jobs/:id/ai-apply` | ✅ Verified Wiring |
+| **Docs Build** | `npm run build` | ✅ Verified (Prompt 38) |
+| **Jobs Loading** | `Browser Check` | ✅ Fixed (Prompt 35) |
