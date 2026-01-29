@@ -10,6 +10,7 @@ import Spinner from "@/components/ui/Spinner";
 import Badge from "@/components/ui/Badge";
 import AiAssistModal from "@/components/jobs/AiAssistModal";
 import { Job, JOB_STATUSES, JobStatus, WORK_MODES, PRIORITIES, WorkMode, Priority } from "@/lib/supabase/client";
+import JobDetailsPanel from "@/components/jobs/JobDetailsPanel";
 import { formatRelativeTime } from "@/lib/utils/format";
 
 // Status options for filter dropdown
@@ -73,6 +74,14 @@ function parseSkills(input: string, maxCount: number = 10): string[] {
     return uniqueSkills.slice(0, maxCount);
 }
 
+// Format location helper
+function formatLocation(job: Job) {
+    if (job.work_mode && job.location) return `${job.work_mode} • ${job.location}`;
+    if (job.work_mode) return job.work_mode;
+    if (job.location) return job.location;
+    return "—";
+}
+
 // Dropdown options for new fields
 const WORK_MODE_OPTIONS = [
     { value: "", label: "Select..." },
@@ -119,6 +128,9 @@ export default function JobsPage() {
     const [statusFilter, setStatusFilter] = useState("");
     const [priorityFilter, setPriorityFilter] = useState("");
     const [workModeFilter, setWorkModeFilter] = useState("");
+
+    // Selection
+    const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
     // Add Job Modal
     const [showAddModal, setShowAddModal] = useState(false);
@@ -427,386 +439,386 @@ export default function JobsPage() {
                 </div>
             )}
 
-            {/* Jobs Table (Desktop) */}
+            {/* Jobs Content (Desktop Split View) */}
             {!loading && !error && jobs.length > 0 && (
-                <>
-                    {/* Desktop View: Table */}
-                    <div className="hidden md:block overflow-hidden rounded-lg border border-[var(--border)]">
-                        <table className="w-full">
-                            <thead className="bg-gray-50 dark:bg-gray-900">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                        Title
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                        Company
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                        Status
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                        Status
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                        Details
-                                    </th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">
-                                        Updated
-                                    </th>
-                                    <th className="px-4 py-3 text-right text-sm font-medium text-[var(--muted)]">
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-[var(--border)]">
-                                {jobs.map((job) => (
-                                    <tr
-                                        key={job.id}
-                                        className="hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
-                                    >
-                                        <td className="px-4 py-3">
-                                            <div className="font-medium">
-                                                {job.title || (
-                                                    <span className="text-[var(--muted)] italic">
-                                                        No title
-                                                    </span>
-                                                )}
-                                            </div>
-                                            {job.job_post_url && (
-                                                <a
-                                                    href={job.job_post_url}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="text-xs text-[var(--primary)] hover:underline"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                >
-                                                    View posting →
-                                                </a>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            {job.company_name || (
-                                                <span className="text-[var(--muted)] italic">—</span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <span
-                                                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
-                                                    job.status
-                                                )}`}
-                                            >
-                                                {job.status}
-                                            </span>
-                                            {/* Missing info badges */}
-                                            {getMissingBadges(job).length > 0 && (
-                                                <div className="flex gap-1 mt-1">
-                                                    {getMissingBadges(job).map((badge) => (
-                                                        <Badge key={badge} variant="warning" size="sm">
-                                                            {badge}
-                                                        </Badge>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-3">
-                                            <div className="flex flex-col gap-1.5 items-start">
-                                                {/* Priority Pill */}
-                                                {job.priority && (
-                                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${job.priority === 'High' ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/30' :
-                                                        job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/30' :
-                                                            'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
-                                                        }`}>
-                                                        {job.priority}
-                                                    </span>
-                                                )}
-                                                {/* Skills Chips (Top 2) */}
-                                                {job.primary_skills && job.primary_skills.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {job.primary_skills.slice(0, 2).map(skill => (
-                                                            <span key={skill} className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-                                                                {skill}
-                                                            </span>
-                                                        ))}
-                                                        {job.primary_skills.length > 2 && (
-                                                            <span className="text-[10px] text-[var(--muted)]">+{job.primary_skills.length - 2}</span>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-[var(--muted)]">
-                                            {formatRelativeTime(job.updated_at)}
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <div className="flex items-center justify-end gap-2">
-                                                {/* AI Assist button - Sparkles */}
-                                                <button
-                                                    className="p-1.5 rounded-md hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-purple-600 dark:text-purple-400"
-                                                    title="AI Assist"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setAiAssistJob(job);
-                                                    }}
-                                                >
-                                                    <svg
-                                                        className="w-4 h-4"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth={2}
-                                                            d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                                                        />
-                                                    </svg>
-                                                </button>
-                                                {/* Manual Edit button - Pencil */}
-                                                <button
-                                                    className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                                                    title="Edit"
-                                                    onClick={() => router.push(`/jobs/${job.id}`)}
-                                                >
-                                                    <svg
-                                                        className="w-4 h-4"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth={2}
-                                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                                        />
-                                                    </svg>
-                                                </button>
-                                                {/* Delete button */}
-                                                <button
-                                                    className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-red-600 dark:text-red-400"
-                                                    title="Delete"
-                                                    onClick={() => setDeleteId(job.id)}
-                                                >
-                                                    <svg
-                                                        className="w-4 h-4"
-                                                        fill="none"
-                                                        stroke="currentColor"
-                                                        viewBox="0 0 24 24"
-                                                    >
-                                                        <path
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                            strokeWidth={2}
-                                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                                        />
-                                                    </svg>
-                                                </button>
-                                            </div>
-                                        </td>
+                <div className="flex flex-col md:flex-row gap-6 h-[calc(100vh-250px)]">
+                    {/* Table Column */}
+                    <div className={`flex-1 transition-all duration-300 overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--background)] flex flex-col ${selectedJobId ? 'md:w-1/2' : 'w-full'}`}>
+                        <div className="overflow-auto flex-1">
+                            <table className="w-full relative border-collapse">
+                                <thead className="bg-gray-50 dark:bg-gray-900 sticky top-0 z-10 shadow-sm">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">Title</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">Company</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)]">Status</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)] hidden lg:table-cell">Priority</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium text-[var(--muted)] hidden md:table-cell">Location</th>
+                                        <th className="px-4 py-3 text-center text-sm font-medium text-[var(--muted)]">Resume</th>
+                                        <th className="px-4 py-3 text-right text-sm font-medium text-[var(--muted)]">Actions</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    {/* Mobile View: Cards */}
-                    <div className="md:hidden space-y-4">
-                        {jobs.map((job) => (
-                            <div
-                                key={job.id}
-                                className="bg-[var(--background)] p-4 rounded-lg border border-[var(--border)] shadow-sm space-y-3"
-                            >
-                                <div className="flex justify-between items-start gap-2">
-                                    <div className="min-w-0">
-                                        <div className="font-semibold truncate">
-                                            {job.title || (
-                                                <span className="text-[var(--muted)] italic">
-                                                    No title
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-sm text-[var(--muted)] truncate">
-                                            {job.company_name || "—"}
-                                        </div>
-                                    </div>
-                                    <span
-                                        className={`flex-shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
-                                            job.status
-                                        )}`}
-                                    >
-                                        {job.status}
-                                    </span>
-                                </div>
-
-                                {/* Missing info badges */}
-                                {getMissingBadges(job).length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
-                                        {getMissingBadges(job).map((badge) => (
-                                            <Badge key={badge} variant="warning" size="sm">
-                                                {badge}
-                                            </Badge>
-                                        ))}
-                                    </div>
-                                )}
-
-                                {/* Priority (Mobile) */}
-                                {job.priority && (
-                                    <div className="flex">
-                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${job.priority === 'High' ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/30' :
-                                            job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/30' :
-                                                'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
-                                            }`}>
-                                            {job.priority} Priority
-                                        </span>
-                                    </div>
-                                )}
-
-                                {/* Skills chips (top 2 primary) */}
-                                {job.primary_skills && job.primary_skills.length > 0 && (
-                                    <div className="flex flex-wrap gap-1">
-                                        {job.primary_skills.slice(0, 2).map((skill) => (
-                                            <span
-                                                key={skill}
-                                                className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                </thead>
+                                <tbody className="divide-y divide-[var(--border)]">
+                                    {jobs.map((job) => {
+                                        const isSelected = selectedJobId === job.id;
+                                        return (
+                                            <tr
+                                                key={job.id}
+                                                className={`cursor-pointer transition-colors relative group
+                                                    ${isSelected
+                                                        ? "bg-blue-50 dark:bg-blue-900/10 border-l-4 border-l-blue-500"
+                                                        : "hover:bg-gray-50 dark:hover:bg-gray-900/50 border-l-4 border-l-transparent"
+                                                    }`}
+                                                tabIndex={0}
+                                                onClick={() => setSelectedJobId(job.id)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === 'Enter' || e.key === ' ') {
+                                                        e.preventDefault();
+                                                        setSelectedJobId(job.id);
+                                                    }
+                                                }}
                                             >
-                                                {skill}
-                                            </span>
-                                        ))}
-                                        {job.primary_skills.length > 2 && (
-                                            <span className="text-xs text-[var(--muted)]">
-                                                +{job.primary_skills.length - 2}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
+                                                {/* Title */}
+                                                <td className="px-4 py-3">
+                                                    <div className="font-medium text-sm text-[var(--foreground)]">
+                                                        {job.title || <span className="text-[var(--muted)] italic">Untitled</span>}
+                                                    </div>
+                                                </td>
 
-                                {/* Next follow-up */}
-                                {job.next_followup_at && (
-                                    <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
-                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                        Follow-up: {new Date(job.next_followup_at).toLocaleDateString()}
-                                    </div>
-                                )}
+                                                {/* Company */}
+                                                <td className="px-4 py-3 text-sm">
+                                                    {job.company_name || <span className="text-[var(--muted)] italic">—</span>}
+                                                </td>
 
-                                <div className="text-xs text-[var(--muted)] flex justify-between items-center">
-                                    <span>Updated {formatRelativeTime(job.updated_at)}</span>
-                                    {job.job_post_url && (
-                                        <a
-                                            href={job.job_post_url}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-[var(--primary)] hover:underline"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            View posting →
-                                        </a>
-                                    )}
-                                </div>
+                                                {/* Status */}
+                                                <td className="px-4 py-3">
+                                                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(job.status)}`}>
+                                                        {job.status}
+                                                    </span>
+                                                </td>
 
-                                {/* Actions Row */}
-                                <div className="pt-3 border-t border-[var(--border)] flex justify-end gap-3">
-                                    {/* AI Assist button - Sparkles */}
-                                    <button
-                                        className="p-2 rounded-md bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400"
-                                        title="AI Assist"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setAiAssistJob(job);
-                                        }}
-                                    >
-                                        <svg
-                                            className="w-5 h-5"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
-                                            />
-                                        </svg>
-                                    </button>
-                                    {/* Manual Edit button - Pencil */}
-                                    <button
-                                        className="p-2 rounded-md bg-gray-100 dark:bg-gray-800"
-                                        title="Edit"
-                                        onClick={() => router.push(`/jobs/${job.id}`)}
-                                    >
-                                        <svg
-                                            className="w-5 h-5"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                            />
-                                        </svg>
-                                    </button>
-                                    {/* Delete button */}
-                                    <button
-                                        className="p-2 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
-                                        title="Delete"
-                                        onClick={() => setDeleteId(job.id)}
-                                    >
-                                        <svg
-                                            className="w-5 h-5"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                            />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                                                {/* Priority */}
+                                                <td className="px-4 py-3 hidden lg:table-cell">
+                                                    {job.priority && (
+                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${job.priority === 'High' ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20' :
+                                                            job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20' :
+                                                                'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800'
+                                                            }`}>
+                                                            {job.priority}
+                                                        </span>
+                                                    )}
+                                                </td>
+
+                                                {/* Location */}
+                                                <td className="px-4 py-3 text-sm text-[var(--muted)] hidden md:table-cell">
+                                                    {formatLocation(job)}
+                                                </td>
+
+                                                {/* Resume */}
+                                                <td className="px-4 py-3 text-center">
+                                                    {job.hasResume && job.resumeFileId ? (
+                                                        <a
+                                                            href={`/api/files/${job.resumeFileId}`}
+                                                            download
+                                                            className="inline-flex items-center justify-center p-1.5 text-blue-600 hover:bg-blue-50 rounded-full transition-colors"
+                                                            title="Download Resume"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                        >
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                            </svg>
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-[var(--muted)] text-xs">—</span>
+                                                    )}
+                                                </td>
+
+                                                {/* Actions */}
+                                                <td className="px-4 py-3 text-right">
+                                                    <div className="flex items-center justify-end gap-1">
+                                                        <button
+                                                            className="p-1.5 rounded-md hover:bg-purple-100 dark:hover:bg-purple-900/30 transition-colors text-purple-600 dark:text-purple-400"
+                                                            title="AI Assist"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setAiAssistJob(job);
+                                                            }}
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                                                            title="Edit"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                router.push(`/jobs/${job.id}`);
+                                                            }}
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                        </button>
+                                                        <button
+                                                            className="p-1.5 rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors text-red-600 dark:text-red-400"
+                                                            title="Delete"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setDeleteId(job.id);
+                                                            }}
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    </div>
+                                                </td>
+
+                                                {/* Caret for selected state */}
+                                                {isSelected && (
+                                                    <td className="absolute right-0 top-1/2 -translate-y-1/2 w-4 overflow-visible hidden md:block">
+                                                        <div className="w-0 h-0 border-t-[8px] border-t-transparent border-r-[8px] border-r-[var(--border)] border-b-[8px] border-b-transparent transform translate-x-[1px]" />
+                                                        <div className="absolute top-0 w-0 h-0 border-t-[8px] border-t-transparent border-r-[8px] border-r-[var(--background)] border-b-[8px] border-b-transparent transform translate-x-[2px]" />
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </>
-            )}
 
-            {/* Empty state */}
-            {!loading && !error && jobs.length === 0 && (
-                <div className="text-center py-12 border border-[var(--border)] rounded-lg">
-                    <svg
-                        className="mx-auto h-12 w-12 text-[var(--muted)]"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                        />
-                    </svg>
-                    <h3 className="mt-2 text-sm font-medium">No jobs tracked</h3>
-                    <p className="mt-1 text-sm text-[var(--muted)]">
-                        {query || statusFilter
-                            ? "No jobs match your filters."
-                            : "Get started by adding a job application."}
-                    </p>
-                    {!query && !statusFilter && (
-                        <div className="mt-6">
-                            <Button onClick={() => setShowAddModal(true)}>+ Add Job</Button>
+                    {/* Details Panel (Desktop) */}
+                    {selectedJobId && (
+                        <div className="hidden md:block w-1/3 min-w-[350px] h-full shadow-lg rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--background)] animate-in slide-in-from-right-10 duration-200">
+                            <JobDetailsPanel
+                                jobId={selectedJobId}
+                                onClose={() => setSelectedJobId(null)}
+                                onEdit={() => router.push(`/jobs/${selectedJobId}`)}
+                                onAiAssist={(job) => setAiAssistJob(job)}
+                            />
                         </div>
                     )}
                 </div>
             )}
+
+            {/* Mobile Details Modal */}
+            <Modal
+                isOpen={!!selectedJobId && typeof window !== 'undefined' && window.innerWidth < 768}
+                onClose={() => setSelectedJobId(null)}
+                title="Job Details"
+            >
+                {selectedJobId && (
+                    <div className="h-[70vh] -mx-6 -my-4">
+                        <JobDetailsPanel
+                            jobId={selectedJobId}
+                            onClose={() => setSelectedJobId(null)}
+                            onEdit={() => router.push(`/jobs/${selectedJobId}`)}
+                            onAiAssist={(job) => setAiAssistJob(job)}
+                        />
+                    </div>
+                )}
+            </Modal>
+            {/* Mobile View: Cards */}
+            {!loading && !error && jobs.length > 0 && (
+                <div className="md:hidden space-y-4">
+                    {jobs.map((job) => (
+                        <div
+                            key={job.id}
+                            className="bg-[var(--background)] p-4 rounded-lg border border-[var(--border)] shadow-sm space-y-3"
+                        >
+                            <div className="flex justify-between items-start gap-2">
+                                <div className="min-w-0">
+                                    <div className="font-semibold truncate">
+                                        {job.title || (
+                                            <span className="text-[var(--muted)] italic">
+                                                No title
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="text-sm text-[var(--muted)] truncate">
+                                        {job.company_name || "—"}
+                                    </div>
+                                </div>
+                                <span
+                                    className={`flex-shrink-0 inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusColor(
+                                        job.status
+                                    )}`}
+                                >
+                                    {job.status}
+                                </span>
+                            </div>
+
+                            {/* Missing info badges */}
+                            {getMissingBadges(job).length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                    {getMissingBadges(job).map((badge) => (
+                                        <Badge key={badge} variant="warning" size="sm">
+                                            {badge}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Priority (Mobile) */}
+                            {job.priority && (
+                                <div className="flex">
+                                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${job.priority === 'High' ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/30' :
+                                        job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/30' :
+                                            'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
+                                        }`}>
+                                        {job.priority} Priority
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* Skills chips (top 2 primary) */}
+                            {job.primary_skills && job.primary_skills.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                    {job.primary_skills.slice(0, 2).map((skill) => (
+                                        <span
+                                            key={skill}
+                                            className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300"
+                                        >
+                                            {skill}
+                                        </span>
+                                    ))}
+                                    {job.primary_skills.length > 2 && (
+                                        <span className="text-xs text-[var(--muted)]">
+                                            +{job.primary_skills.length - 2}
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Next follow-up */}
+                            {job.next_followup_at && (
+                                <div className="flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400">
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    Follow-up: {new Date(job.next_followup_at).toLocaleDateString()}
+                                </div>
+                            )}
+
+                            <div className="text-xs text-[var(--muted)] flex justify-between items-center">
+                                <span>Updated {formatRelativeTime(job.updated_at)}</span>
+                                {job.job_post_url && (
+                                    <a
+                                        href={job.job_post_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-[var(--primary)] hover:underline"
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        View posting →
+                                    </a>
+                                )}
+                            </div>
+
+                            {/* Actions Row */}
+                            <div className="pt-3 border-t border-[var(--border)] flex justify-end gap-3">
+                                {/* AI Assist button - Sparkles */}
+                                <button
+                                    className="p-2 rounded-md bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400"
+                                    title="AI Assist"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setAiAssistJob(job);
+                                    }}
+                                >
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+                                        />
+                                    </svg>
+                                </button>
+                                {/* Manual Edit button - Pencil */}
+                                <button
+                                    className="p-2 rounded-md bg-gray-100 dark:bg-gray-800"
+                                    title="Edit"
+                                    onClick={() => router.push(`/jobs/${job.id}`)}
+                                >
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                        />
+                                    </svg>
+                                </button>
+                                {/* Delete button */}
+                                <button
+                                    className="p-2 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400"
+                                    title="Delete"
+                                    onClick={() => setDeleteId(job.id)}
+                                >
+                                    <svg
+                                        className="w-5 h-5"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                        />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {/* Empty state */}
+            {
+                !loading && !error && jobs.length === 0 && (
+                    <div className="text-center py-12 border border-[var(--border)] rounded-lg">
+                        <svg
+                            className="mx-auto h-12 w-12 text-[var(--muted)]"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                            />
+                        </svg>
+                        <h3 className="mt-2 text-sm font-medium">No jobs tracked</h3>
+                        <p className="mt-1 text-sm text-[var(--muted)]">
+                            {query || statusFilter
+                                ? "No jobs match your filters."
+                                : "Get started by adding a job application."}
+                        </p>
+                        {!query && !statusFilter && (
+                            <div className="mt-6">
+                                <Button onClick={() => setShowAddModal(true)}>+ Add Job</Button>
+                            </div>
+                        )}
+                    </div>
+                )
+            }
 
             {/* Add Job Modal */}
             <Modal
@@ -1151,17 +1163,19 @@ export default function JobsPage() {
             </Modal>
 
             {/* AI Assist Modal */}
-            {aiAssistJob && (
-                <AiAssistModal
-                    isOpen={!!aiAssistJob}
-                    onClose={() => setAiAssistJob(null)}
-                    job={aiAssistJob}
-                    onApplied={() => {
-                        setAiAssistJob(null);
-                        fetchJobs();
-                    }}
-                />
-            )}
-        </div>
+            {
+                aiAssistJob && (
+                    <AiAssistModal
+                        isOpen={!!aiAssistJob}
+                        onClose={() => setAiAssistJob(null)}
+                        job={aiAssistJob}
+                        onApplied={() => {
+                            setAiAssistJob(null);
+                            fetchJobs();
+                        }}
+                    />
+                )
+            }
+        </div >
     );
 }

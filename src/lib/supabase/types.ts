@@ -50,6 +50,9 @@ export interface Job {
     notes: string | null;
     created_at: string;
     updated_at: string;
+    // Transient fields (computed for list view)
+    hasResume?: boolean;
+    resumeFileId?: string | null;
 }
 
 // Job file record from database
