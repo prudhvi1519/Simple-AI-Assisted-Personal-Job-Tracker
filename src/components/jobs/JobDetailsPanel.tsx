@@ -46,7 +46,9 @@ export default function JobDetailsPanel({ jobId, onClose, onEdit, onAiAssist }: 
                 if (!res.ok) throw new Error("Failed to load details");
                 const data = await res.json();
                 if (isMounted) {
-                    setJob(data.job);
+                    // API returns job fields at root level (not nested as data.job)
+                    // along with files and latest_ai_run
+                    setJob(data);
                     setFiles(data.files || []);
                 }
             } catch (err) {
