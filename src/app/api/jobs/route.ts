@@ -80,7 +80,13 @@ export async function GET(request: NextRequest) {
             total: count || 0,
         };
 
-        return NextResponse.json(response);
+        return NextResponse.json(response, {
+            headers: {
+                "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+                "Pragma": "no-cache",
+                "Expires": "0",
+            }
+        });
     } catch (err) {
         console.error("Unexpected error in GET /api/jobs:", err);
         return NextResponse.json(

@@ -161,10 +161,16 @@ export default function JobsPage() {
             }
 
             const data = await res.json();
-            setJobs(data.items);
-            setTotal(data.total);
+
+            // Defensive parsing
+            const items = Array.isArray(data?.items) ? data.items : [];
+            const count = typeof data?.total === 'number' ? data.total : items.length;
+
+            setJobs(items);
+            setTotal(count);
         } catch (err) {
             setError(err instanceof Error ? err.message : "An error occurred");
+        } finally {
             setLoading(false);
         }
     }, [query, statusFilter, priorityFilter, workModeFilter]);
@@ -507,8 +513,8 @@ export default function JobsPage() {
                                                 {/* Priority Pill */}
                                                 {job.priority && (
                                                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${job.priority === 'High' ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/30' :
-                                                            job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/30' :
-                                                                'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
+                                                        job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/30' :
+                                                            'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
                                                         }`}>
                                                         {job.priority}
                                                     </span>
@@ -648,8 +654,8 @@ export default function JobsPage() {
                                 {job.priority && (
                                     <div className="flex">
                                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium border ${job.priority === 'High' ? 'bg-red-50 text-red-700 border-red-100 dark:bg-red-900/20 dark:text-red-300 dark:border-red-900/30' :
-                                                job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/30' :
-                                                    'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
+                                            job.priority === 'Medium' ? 'bg-yellow-50 text-yellow-700 border-yellow-100 dark:bg-yellow-900/20 dark:text-yellow-300 dark:border-yellow-900/30' :
+                                                'bg-gray-50 text-gray-600 border-gray-100 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700'
                                             }`}>
                                             {job.priority} Priority
                                         </span>
