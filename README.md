@@ -1,140 +1,229 @@
 # Simple AI-Assisted Personal Job Tracker
 
-A powerful, self-hosted job application tracker built with Next.js, Supabase, and Gemini AI to streamline your job search with automated data extraction and management.
+Track job applications + files + AI extraction on a lightweight stack.
 
-## 🚀 Live Demo & Repo
-- **Production Stats**: [https://simple-job-tracker-ai.netlify.app](https://simple-job-tracker-ai.netlify.app)
-- **Repo**: [https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker](https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker)
+![Repo](https://img.shields.io/badge/Status-Active-success)
+[![Demo](https://img.shields.io/badge/Demo-Live-blue)](https://simple-job-tracker-ai.netlify.app)
 
-## ✨ Feature Highlights
-- **Jobs CRUD**: Manage job applications with advanced fields (Priority, Work Mode, Compensation, etc.).
-- **Smart Status Flow**: Tracking from "Applied" to "Offer" with automated status bumps on file uploads.
-- **File Management**: Upload, view, and delete Resumes and Descriptions securely linked to jobs.
-- **AI Assist**: 
-  - **Extract**: Auto-fill job details (Skills, Location, Emails) from raw text or URLs using Gemini.
-  - **Selective Apply**: Choose which AI suggestions to commit to your database.
-- **Advanced Search & Filters**: Filter by Status, Priority, and Work Mode instantly.
-- **Data Portability**: Full JSON/Manifest exports for backups and CSV exports for reporting.
-- **Health Checks**: Built-in endpoints to verify Environment, Storage, and Database Schema integrity.
-- **Responsive UI**: Optimized Desktop Table and Mobile Card layouts with specialized drawers.
+## 🔗 Live Demo & Repo
+- **Production URL**: [https://simple-job-tracker-ai.netlify.app](https://simple-job-tracker-ai.netlify.app)
+- **Repository**: [https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker](https://github.com/prudhvi1519/Simple-AI-Assisted-Personal-Job-Tracker)
+
+## ⚡ At a Glance
+- **Smart Tracking**: Job CRUD with advanced optional fields (Priority, Work Mode, Compensation).
+- **Status Workflow**: Custom statuses with auto-bump from "Saved" to "Applied" on upload.
+- **File Management**: Upload Resumes and Descriptions securely to Supabase Storage.
+- **AI Assist**: Extract details from raw JDs/URLs, Diff Preview, and Selective Apply.
+- **Search & Filter**: Instant filtering by Status, Priority, and Work Mode.
+- **Data Portability**: Full CSV/JSON exports + Manifest backup (Single Source of Truth).
+- **Production Ready**: Built-in health checks for Environment, Storage, and Schema.
+- **Mobile Optimized**: Responsive Card layouts and Drawer sidebars.
+
+## 📑 Table of Contents
+- [Simple AI-Assisted Personal Job Tracker](#simple-ai-assisted-personal-job-tracker)
+  - [🔗 Live Demo \& Repo](#-live-demo--repo)
+  - [⚡ At a Glance](#-at-a-glance)
+  - [📑 Table of Contents](#-table-of-contents)
+  - [📷 Screenshots](#-screenshots)
+  - [✨ Features](#-features)
+  - [🛠️ Tech Stack](#️-tech-stack)
+  - [🧱 Architecture](#-architecture)
+  - [📦 Data Model](#-data-model)
+  - [🔌 API Endpoints](#-api-endpoints)
+  - [🚀 Quickstart (Local)](#-quickstart-local)
+  - [🔐 Environment Variables](#-environment-variables)
+  - [🗄️ Supabase Setup](#️-supabase-setup)
+  - [📁 Storage Paths](#-storage-paths)
+  - [🧠 AI Contract](#-ai-contract)
+  - [📤 Export \& Backup](#-export--backup)
+  - [✅ Health Checks](#-health-checks)
+  - [🧰 Deployment (Netlify)](#-deployment-netlify)
+  - [🧯 Troubleshooting](#-troubleshooting)
+  - [📚 Documentation Index](#-documentation-index)
+
+## 📷 Screenshots
+*Screenshots to be added.*
+<details>
+<summary>Contribution Instructions</summary>
+Place screenshots in `docs/screens/` and reference them here.
+</details>
+
+## ✨ Features
+
+### A) Jobs & Status
+- **Rich Data**: Track more than just titles. Store Recruiter info, compensation ranges, follow-up dates, and source.
+- **Visuals**: Priority Pills (High/Medium/Low) and Status Badges.
+
+### B) Files
+- **Resume Hosting**: PDF/DOCX support.
+- **Context Awareness**: Files are strictly linked to `job_id`.
+
+### C) AI Assist
+- **Gemini Pro Integration**: Analyzing job descriptions with high accuracy.
+- **Safety First**: "Diff View" ensures no AI hallucination overwrites your data without approval.
+
+### D) Exports & Backup
+- **CSV**: for spreadsheet analysis.
+- **Manifest**: Deep JSON export of Database + File metadata.
+
+### E) Mobile UX
+- **Card Layout**: Specialized view for small screens.
+- **Drawers**: Smooth slide-overs for adding jobs and viewing details.
+
+### F) Health & Guardrails
+- **Schema Validation**: Endpoints to warn if DB migrations are missing.
+- **Environment Checks**: Boot-time verification of API keys.
 
 ## 🛠️ Tech Stack
-- **Frontend**: Next.js 14 (App Router), TailwindCSS, TypeScript
-- **Backend**: Supabase (Postgres Database, Auth, Storage)
-- **AI**: Google Gemini Pro (via API)
-- **Deployment**: Netlify
 
-## ⚡ Quickstart (Local)
+| Component | Technology | Description |
+|-----------|------------|-------------|
+| **Framework** | Next.js 14 | App Router, Server Actions |
+| **Database** | Supabase | Postgres + Auth (Inactive) |
+| **Storage** | Supabase Storage | File hosting |
+| **AI** | Google Gemini | Generative Language API |
+| **Styling** | Tailwind CSS | Utility-first styling |
+| **Hosting** | Netlify | Static + Edge/Serverless |
 
-1. **Install Dependencies** (Requires Node 18+)
-   ```powershell
-   npm install
-   ```
+## 🧱 Architecture
 
-2. **Run Development Server**
-   ```powershell
-   npm run dev
-   ```
-   Access at `http://localhost:3000`.
+```mermaid
+graph TD
+    User[User] -->|Browser| Next[Next.js App]
+    Next -->|API Routes| Supabase[Supabase DB]
+    Next -->|API Routes| Storage[Supabase Storage]
+    Next -->|Server| Gemini[Gemini API]
+    Gemini -->|Extract| Next
+    Next -->|Log| AIRuns[ai_runs Table]
+```
 
-3. **Build for Production**
-   ```powershell
-   npm run build
-   ```
+## 📦 Data Model
+
+| Table | Description | Key Columns |
+|-------|-------------|-------------|
+| `jobs` | Core Application Data | `id`, `title`, `status`, `primary_skills` |
+| `job_files` | File References | `id`, `job_id`, `file_type`, `path` |
+| `ai_runs` | Interaction Logs | `id`, `job_id`, `prompt`, `response` |
+
+**Migrations**: `supabase/migrations/20260128170000_jobs_fields_upgrade.sql`
+
+## 🔌 API Endpoints
+
+| Category | Endpoint | Notes |
+|----------|----------|-------|
+| **Jobs** | `/api/jobs` | GET list, POST create |
+| **Jobs** | `/api/jobs/:id` | GET detail, PUT update, DELETE |
+| **Files** | `/api/jobs/:id/files` | POST upload |
+| **Files** | `/api/files/:fileId` | GET download, DELETE |
+| **AI** | `/api/jobs/:id/ai-extract` | POST text/url to extract |
+| **AI** | `/api/jobs/:id/ai-apply` | POST apply suggestions |
+| **Export** | `/api/export/manifest.json` | GET full backup |
+| **Health** | `/api/health/schema` | GET check DB columns |
+
+## 🚀 Quickstart (Local)
+
+```powershell
+# 1. Install dependencies
+npm install
+
+# 2. Set up environment (see below)
+cp .env.example .env.local
+
+# 3. Run development server
+npm run dev
+
+# 4. Build for production (test)
+npm run build
+```
 
 ## 🔐 Environment Variables
 
-Create a `.env.local` file in the root directory:
+Create `.env.local`:
 
-```env
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-
-# Gemini AI
-GEMINI_API_KEY=your-gemini-api-key
 ```
-
-**Note:** Never commit `.env.local` to version control.
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbG...
+GEMINI_API_KEY=AIzaSy...
+```
 
 ## 🗄️ Supabase Setup
 
-1. **Create Project**: Start a new project at [database.new](https://database.new).
-2. **Setup Storage**: Create a public bucket named `job-files`.
-3. **Apply Migrations**: 
-   - Open specific migration file `supabase/migrations/20260128170000_jobs_fields_upgrade.sql`
-   - Copy contents and run in the Supabase **SQL Editor**.
+1. **Create Project**: [database.new](https://database.new)
+2. **Create Bucket**: `job-files` (Public)
+3. **Apply Migrations**:
+   Run `supabase/migrations/20260128170000_jobs_fields_upgrade.sql` in SQL Editor.
 4. **Reload Schema**:
-   After applying migrations, force a schema cache reload:
    ```sql
    NOTIFY pgrst, 'reload schema';
    ```
 
-### Data Model Overview
-- **jobs**: Core table storing application details (Title, Company, Status, Skills, etc).
-- **job_files**: Links uploaded files (Resumes, JDs) to jobs.
-- **ai_runs** (planned): Logs AI interaction history.
+## 📁 Storage Paths
+Files are stored with the following convention:
+- **Resumes**: `jobs/<jobId>/resume/<fileId>-<originalName>`
+- **Docs**: `jobs/<jobId>/document/<fileId>-<originalName>`
 
-See `supabase/schema.sql` for the baseline structure.
+## 🧠 AI Contract
 
-## 📂 Storage Paths
-Files are organized strictly by logical hierarchy:
-- `jobs/<jobId>/resume/<fileId>-<originalName>`
-- `jobs/<jobId>/document/<fileId>-<originalName>`
+We enforce a Strict JSON response from Gemini:
 
-## 🔌 API Endpoints (High-Level)
+```json
+{
+  "confidence": { "skills": 0.9 },
+  "suggested": { ... },
+  "unknown_fields": ["salary"]
+}
+```
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/jobs` | GET, POST | List all jobs / Create new job |
-| `/api/jobs/:id` | GET, PUT, DELETE | Manage specific job |
-| `/api/jobs/:id/files` | POST | Upload file to job |
-| `/api/jobs/:id/ai-extract` | POST | Extract fields from text/URL |
-| `/api/jobs/:id/ai-apply` | POST | Apply AI suggestions to DB |
-| `/api/export/manifest.json` | GET | Full backup of DB + File references |
-| `/api/health/schema` | GET | Verify DB columns match code expectations |
+- **No Guessing**: Unknown fields return `null`.
+- **Validation**: Enums (Remote/Hybrid) are strictly validated.
+- **Fail-safe**: URL fetch failures fall back to user-pasted text.
 
-## 🤖 AI Behavior Contract
-The AI is strictly engineered to provide **factual data only**:
-- **No Guessing**: Unknown fields return `null` or `[]`.
-- **Validation**: "Work Mode" and "Priority" values are validated against allowed enums.
-- **Extraction**: Only extract what is explicitly present in the source text.
-- **Manual Override**: AI suggestions are presented in a Diff View; user has final authority to apply changes.
+## 📤 Export & Backup
 
-## 💾 Backup & Restore
-The **Manifest Export** acts as the source of truth for your data state.
-- **Backup**: Download `/api/export/manifest.json` regularly.
-- **Files**: Ensure you have copies of files referenced in the manifest (or download via `/api/files/:fileId`).
+- **CSV**: `/api/export/jobs.csv`
+- **JSON**: `/api/export/jobs.json`
+- **Manifest**: `/api/export/manifest.json` (Primary Backup)
 
-## 🚀 Deployment (Netlify)
+**Download Backup:**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3000/api/export/manifest.json" -OutFile "backup.json"
+```
 
-1. **Build Settings**:
-   - Build Command: `npm run build`
-   - Publish Directory: `.next` (or default)
-2. **Environment**: Add `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `GEMINI_API_KEY` to Site Settings.
-3. **CLI Deploy**:
+## ✅ Health Checks
+
+| Endpoint | Checks |
+|----------|--------|
+| `/api/health/env` | API Keys presence |
+| `/api/health/storage` | Bucket accessibility |
+| `/api/health/schema` | **Critical**: Verifies DB migration applied |
+
+## 🧰 Deployment (Netlify)
+
+1. **Build Command**: `npm run build`
+2. **Environment**: Set variables in Site Settings.
+3. **Deploy**:
    ```powershell
    netlify deploy --prod
    ```
-4. **Verification**:
-   Check `https://<site>.netlify.app/api/health/env` after deploy.
+4. **Verify**: Check `/api/health/env`.
 
-## ⚠️ Troubleshooting (Windows PowerShell)
+## 🧯 Troubleshooting
 
-**PowerShell `curl` Pitfall:**
-In PowerShell, `curl` is an alias for `Invoke-WebRequest`, which parses response HTML and breaks on JSON/Binary inputs often.
+### PowerShell `curl` pitfalls (use this instead)
 
-**Recommended: Use `Invoke-RestMethod`**
+Using `curl` in PowerShell often invokes `Invoke-WebRequest` which corrupts JSON payloads.
+
+**Correct Way (Invoke-RestMethod):**
 ```powershell
-$body = @{ title = "New Job" } | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/jobs" -ContentType "application/json" -Body $body
+$body = @{ title = "Job" } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "url" -Body $body -ContentType "application/json"
 ```
 
-**If using `curl.exe`:**
-Always quote JSON or use a file:
+**If using curl.exe:**
 ```powershell
-curl.exe -X POST ... -d '@body.json'
+curl.exe -H "Content-Type: application/json" -d '@body.json' "url"
 ```
 
-## 📚 Docs Index
-- [STATUS_PACK.md](./STATUS_PACK.md) - Current feature implementation status.
+## 📚 Documentation Index
+- [STATUS_PACK.md](./STATUS_PACK.md) - Feature implementation status.
+- [Database Schema](./supabase/schema.sql)
