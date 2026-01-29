@@ -4,6 +4,7 @@ Track job applications + files + AI extraction on a lightweight stack.
 
 ![Repo](https://img.shields.io/badge/Status-Active-success)
 [![Demo](https://img.shields.io/badge/Demo-Live-blue)](https://simple-job-tracker-ai.netlify.app)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
 
 <br/>
 
@@ -33,8 +34,7 @@ Track job applications + files + AI extraction on a lightweight stack.
   - [🔗 Live Demo \& Repo](#-live-demo--repo)
   - [⚡ At a Glance](#-at-a-glance)
   - [📑 Table of Contents](#-table-of-contents)
-  - [� Implementation Status (Summary)](#-implementation-status-summary)
-  - [�📷 Screenshots](#-screenshots)
+  - [📦 Implementation Status (Summary)](#-implementation-status-summary)
   - [✨ Features](#-features)
   - [🛠️ Tech Stack](#️-tech-stack)
   - [🧱 Architecture](#-architecture)
@@ -49,6 +49,7 @@ Track job applications + files + AI extraction on a lightweight stack.
   - [✅ Health Checks](#-health-checks)
   - [🧰 Deployment (Netlify)](#-deployment-netlify)
   - [🧯 Troubleshooting](#-troubleshooting)
+  - [📄 License](#-license)
   - [📚 Documentation Index](#-documentation-index)
 
 <br/>
@@ -73,17 +74,6 @@ Track job applications + files + AI extraction on a lightweight stack.
 
 **Link to Full Pack**
 📄 Full proof / regression logs / prompt history: [STATUS_PACK.md](./STATUS_PACK.md)
-
-<br/>
-
-## 📷 Screenshots
-
-*Screenshots to be added.*
-
-<details>
-<summary>Contribution Instructions</summary>
-Place screenshots in `docs/screens/` and reference them here.
-</details>
 
 <br/>
 
@@ -320,8 +310,15 @@ curl.exe --data-binary "@body.json" -H "Content-Type: application/json" "url"
 
 <br/>
 
+## 📄 License
+
+MIT License. See [LICENSE](./LICENSE).
+
+<br/>
+
 ## 📚 Documentation Index
 
 - [STATUS_PACK.md](./STATUS_PACK.md) - Feature implementation status.
+- [LICENSE](./LICENSE)
 - [Database Schema](./supabase/schema.sql)
 - [Migrations](./supabase/migrations/)
