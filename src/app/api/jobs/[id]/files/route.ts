@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { Job, JobFile, FILE_TYPES } from "@/lib/supabase/client";
 
 // Force dynamic - needs env vars at runtime
@@ -19,6 +20,10 @@ interface RouteParams {
 
 // POST /api/jobs/[id]/files - Upload a file (resume or document)
 export async function POST(request: NextRequest, { params }: RouteParams) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     const { id: jobId } = await params;
 
     // Check env vars first (fail fast)
@@ -179,6 +184,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
 // GET /api/jobs/[id]/files - List files for a job (convenience endpoint)
 export async function GET(request: NextRequest, { params }: RouteParams) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         const { id: jobId } = await params;
         const supabase = getServerSupabase();

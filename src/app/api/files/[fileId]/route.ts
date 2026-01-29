@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { JobFile } from "@/lib/supabase/client";
 
 // Force dynamic - needs env vars at runtime
@@ -19,6 +20,10 @@ interface RouteParams {
 
 // GET /api/files/[fileId] - Download a file
 export async function GET(request: NextRequest, { params }: RouteParams) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         requireServerEnv(ENV_KEYS.SUPABASE);
         const { fileId } = await params;
@@ -72,6 +77,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // DELETE /api/files/[fileId] - Delete a file
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         requireServerEnv(ENV_KEYS.SUPABASE);
         const { fileId } = await params;

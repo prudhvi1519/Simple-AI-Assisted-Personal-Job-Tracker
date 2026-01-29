@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { Job, WorkMode, WORK_MODES } from "@/lib/supabase/client";
 
 // Force dynamic - needs env vars at runtime
@@ -26,6 +27,10 @@ interface ApplyRequestBody {
 
 // POST /api/jobs/[id]/ai-apply - Apply selected AI-extracted fields
 export async function POST(request: NextRequest, { params }: RouteParams) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     const { id: jobId } = await params;
     const supabase = getServerSupabase();
 

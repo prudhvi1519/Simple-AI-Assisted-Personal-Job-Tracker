@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { Job } from "@/lib/supabase/client";
 import { fetchUrlAsText } from "@/lib/ai/htmlToText";
 import { extractWithGemini, GeminiRateLimitError } from "@/lib/ai/gemini";
@@ -32,6 +33,10 @@ interface ExtractRequestBody {
 
 // POST /api/jobs/[id]/ai-extract - Extract job info using AI
 export async function POST(request: NextRequest, { params }: RouteParams) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     const { id: jobId } = await params;
 
     // Check env vars first

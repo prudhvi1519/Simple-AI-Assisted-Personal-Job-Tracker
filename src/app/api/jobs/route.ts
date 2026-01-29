@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import {
     Job,
     JobsListResponse,
@@ -26,6 +27,10 @@ export const dynamic = "force-dynamic";
 
 // GET /api/jobs - List jobs with optional filters
 export async function GET(request: NextRequest) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         requireServerEnv(ENV_KEYS.SUPABASE);
         const supabase = getServerSupabase();
@@ -129,6 +134,10 @@ export async function GET(request: NextRequest) {
 
 // POST /api/jobs - Create a new job
 export async function POST(request: NextRequest) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         requireServerEnv(ENV_KEYS.SUPABASE);
         const supabase = getServerSupabase();

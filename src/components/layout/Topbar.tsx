@@ -1,6 +1,7 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useSidebar } from "./SidebarProvider";
 
 function getPageTitle(pathname: string): string {
@@ -14,8 +15,22 @@ function getPageTitle(pathname: string): string {
 
 export default function Topbar() {
     const pathname = usePathname();
+    const router = useRouter();
     const title = getPageTitle(pathname);
     const { toggle } = useSidebar();
+    const [loggingOut, setLoggingOut] = useState(false);
+
+    const handleLogout = async () => {
+        setLoggingOut(true);
+        try {
+            await fetch("/api/auth/logout", { method: "POST" });
+            router.push("/login");
+            router.refresh();
+        } catch (err) {
+            console.error("Logout error:", err);
+            setLoggingOut(false);
+        }
+    };
 
     return (
         <header className="h-16 border-b border-[var(--border)] bg-[var(--background)] flex items-center justify-between px-4 md:px-6">
@@ -64,6 +79,29 @@ export default function Topbar() {
                         />
                     </svg>
                 </div>
+
+                {/* Logout button */}
+                <button
+                    onClick={handleLogout}
+                    disabled={loggingOut}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors disabled:opacity-50"
+                    aria-label="Logout"
+                >
+                    <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                        />
+                    </svg>
+                    <span className="hidden sm:inline">{loggingOut ? "..." : "Logout"}</span>
+                </button>
             </div>
         </header>
     );

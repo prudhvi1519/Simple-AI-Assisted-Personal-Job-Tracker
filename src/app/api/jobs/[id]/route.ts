@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 import {
     Job,
     JobFile,
@@ -33,6 +34,10 @@ interface RouteParams {
 
 // GET /api/jobs/[id] - Get job details with files and latest AI run
 export async function GET(request: NextRequest, { params }: RouteParams) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         const { id } = await params;
         const supabase = getServerSupabase();
@@ -100,6 +105,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
 // PUT /api/jobs/[id] - Update job (partial update allowed)
 export async function PUT(request: NextRequest, { params }: RouteParams) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         requireServerEnv(ENV_KEYS.SUPABASE);
         const { id } = await params;
@@ -225,6 +234,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 // DELETE /api/jobs/[id] - Delete job (hard delete)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         requireServerEnv(ENV_KEYS.SUPABASE);
         const { id } = await params;

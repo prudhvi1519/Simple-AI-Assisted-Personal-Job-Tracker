@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSupabase } from "@/lib/supabase/server";
 import { requireServerEnv, ENV_KEYS } from "@/lib/utils/env";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 // Force dynamic - needs env vars at runtime
 export const dynamic = "force-dynamic";
@@ -12,7 +13,11 @@ export const dynamic = "force-dynamic";
 //     // Will be caught per-request
 // }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    // Auth guard
+    const authError = requireAdmin(request);
+    if (authError) return authError;
+
     try {
         requireServerEnv(ENV_KEYS.SUPABASE);
         const supabase = getServerSupabase();
